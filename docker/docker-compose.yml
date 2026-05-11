@@ -1,0 +1,38 @@
+services:
+  backend:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.backend
+    env_file:
+      - ../.env
+    ports:
+      - "8000:8000"
+    volumes:
+      - ../backend/agentic_factcheck.db:/app/agentic_factcheck.db
+
+  frontend:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.frontend
+    environment:
+      VITE_API_BASE_URL: http://localhost:8000
+      VITE_WS_BASE_URL: ws://localhost:8000
+    ports:
+      - "5173:80"
+    depends_on:
+      - backend
+
+  postgres:
+    image: postgres:16-alpine
+    profiles: ["postgres"]
+    environment:
+      POSTGRES_USER: factcheck
+      POSTGRES_PASSWORD: factcheck
+      POSTGRES_DB: factcheck
+    ports:
+      - "5432:5432"
+    volumes:
+      - factcheck_pg:/var/lib/postgresql/data
+
+volumes:
+  factcheck_pg:

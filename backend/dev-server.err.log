@@ -1,0 +1,15 @@
+INFO:     Started server process [4280]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+E:\Fact Checker\backend\app\agents\worker.py:28: SAWarning: Usage of the 'Session.add()' operation is not currently supported within the execution stage of the flush process. Results may not be consistent.  Consider using alternative event listeners or connection-level operations instead.
+  self.db.add(agent)
+INFO:     ('127.0.0.1', 62123) - "WebSocket /ws/investigation/b41dac7e-5f75-40ee-9147-966356aae5ef" [accepted]
+INFO:     connection open
+INFO:     connection closed
+INFO:     ('127.0.0.1', 59868) - "WebSocket /ws/investigation/20929e79-d514-4bee-a21c-9bb4e376d0e1" [accepted]
+INFO:     connection open
+INFO:     connection closed
+INFO:     ('127.0.0.1', 60196) - "WebSocket /ws/investigation/6a6718e7-9f33-4134-ae3b-5ebb541dea4d" [accepted]
+INFO:     connection open
+INFO:     connection closed
