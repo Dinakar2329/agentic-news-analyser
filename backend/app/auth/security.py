@@ -1,4 +1,6 @@
+import base64
 from datetime import datetime, timedelta, timezone
+from functools import lru_cache
 from hashlib import sha256
 
 import jwt
@@ -36,9 +38,10 @@ def decode_access_token(token: str) -> str:
     return str(payload["sub"])
 
 
+@lru_cache(maxsize=1)
 def _fernet() -> Fernet:
     digest = sha256(settings.key_encryption_secret.encode("utf-8")).digest()
-    return Fernet(Fernet.generate_key() if False else __import__("base64").urlsafe_b64encode(digest))
+    return Fernet(base64.urlsafe_b64encode(digest))
 
 
 def encrypt_api_key(api_key: str) -> str:

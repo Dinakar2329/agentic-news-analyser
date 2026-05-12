@@ -1,11 +1,13 @@
 import asyncio
 import logging
-from datetime import datetime, timedelta
+from datetime import timedelta
 
-from sqlalchemy import select
+from sqlalchemy import delete, select, update
 
+from app.core.config import settings
+from app.core.time import utcnow
 from app.database.session import async_session_maker
-from app.models.tables import Investigation, InvestigationJob
+from app.models.tables import Agent, Event, Finding, GraphSnapshot, Investigation, InvestigationJob, Source
 from app.orchestration.service import orchestrator
 
 
@@ -13,11 +15,14 @@ logger = logging.getLogger(__name__)
 
 
 class InvestigationJobService:
-    def __init__(self, poll_interval: float = 1.5):
+    def __init__(self, poll_interval: float = 1.5, worker_count: int | None = None):
         self.poll_interval = poll_interval
+        self.worker_count = worker_count
         self._stop_event = asyncio.Event()
 
     async def enqueue(self, investigation_id: str):
+        from sqlalchemy.exc import IntegrityError
+
         async with async_session_maker() as db:
             existing = await db.scalar(
                 select(InvestigationJob).where(InvestigationJob.investigation_id == investigation_id)
@@ -26,7 +31,21 @@ class InvestigationJobService:
                 return existing
             job = InvestigationJob(investigation_id=investigation_id)
             db.add(job)
-            await db.commit()
+            try:
+                await db.commit()
+            except IntegrityError:
+                await db.rollback()
+                existing = await db.scalar(
+                    select(InvestigationJob).where(InvestigationJob.investigation_id == investigation_id)
+                )
+                if existing:
+                    logger.info(
+                        "investigation_job_enqueue_lost_race id=%s investigation_id=%s",
+                        existing.id,
+                        investigation_id,
+                    )
+                    return existing
+                raise
             await db.refresh(job)
             logger.info("investigation_job_enqueued id=%s investigation_id=%s", job.id, investigation_id)
             return job
@@ -39,7 +58,7 @@ class InvestigationJobService:
             for job in rows:
                 job.status = "retrying" if job.attempts < job.max_attempts else "failed"
                 job.locked_at = None
-                job.run_after = datetime.utcnow()
+                job.run_after = utcnow()
                 investigation = await db.get(Investigation, job.investigation_id)
                 if investigation and investigation.status == "running":
                     investigation.status = "queued" if job.status == "retrying" else "failed"
@@ -49,6 +68,16 @@ class InvestigationJobService:
     async def run_forever(self):
         self._stop_event.clear()
         await self.recover_interrupted_jobs()
+        worker_count = max(1, self.worker_count or settings.job_worker_count)
+        workers = [asyncio.create_task(self._run_loop(index + 1)) for index in range(worker_count)]
+        try:
+            await asyncio.gather(*workers)
+        finally:
+            for worker in workers:
+                worker.cancel()
+            await asyncio.gather(*workers, return_exceptions=True)
+
+    async def _run_loop(self, worker_id: int):
         while not self._stop_event.is_set():
             processed = await self.process_next()
             if not processed:
@@ -74,27 +103,59 @@ class InvestigationJobService:
 
     async def _claim_next_job(self) -> InvestigationJob | None:
         async with async_session_maker() as db:
-            now = datetime.utcnow()
-            job = await db.scalar(
+            now = utcnow()
+            query = (
                 select(InvestigationJob)
                 .where(
                     InvestigationJob.status.in_(("queued", "retrying")),
                     InvestigationJob.run_after <= now,
                 )
                 .order_by(InvestigationJob.created_at.asc())
+                .limit(1)
             )
+            if db.bind and db.bind.dialect.name == "postgresql":
+                query = query.with_for_update(skip_locked=True)
+            job = await db.scalar(query)
             if not job:
                 return None
-            job.status = "running"
-            job.locked_at = now
-            job.attempts += 1
+            is_retry = job.attempts >= 1
+            claim = await db.execute(
+                update(InvestigationJob)
+                .where(
+                    InvestigationJob.id == job.id,
+                    InvestigationJob.status == job.status,
+                    InvestigationJob.attempts == job.attempts,
+                    InvestigationJob.run_after <= now,
+                )
+                .values(status="running", locked_at=now, attempts=job.attempts + 1)
+            )
+            if claim.rowcount != 1:
+                await db.rollback()
+                return None
+            await db.refresh(job)
             investigation = await db.get(Investigation, job.investigation_id)
             if investigation:
                 investigation.status = "running"
+                if is_retry:
+                    investigation.verdict = None
+                    investigation.confidence = None
+                    investigation.completed_at = None
+            if is_retry:
+                await self._purge_investigation_state(db, job.investigation_id)
             await db.commit()
             await db.refresh(job)
-            logger.info("investigation_job_claimed id=%s investigation_id=%s attempt=%s", job.id, job.investigation_id, job.attempts)
+            logger.info(
+                "investigation_job_claimed id=%s investigation_id=%s attempt=%s is_retry=%s",
+                job.id,
+                job.investigation_id,
+                job.attempts,
+                is_retry,
+            )
             return job
+
+    async def _purge_investigation_state(self, db, investigation_id: str):
+        for table in (Finding, Source, Agent, GraphSnapshot, Event):
+            await db.execute(delete(table).where(table.investigation_id == investigation_id))
 
     async def _mark_complete(self, job_id: str):
         async with async_session_maker() as db:
@@ -121,7 +182,7 @@ class InvestigationJobService:
                     investigation.status = "failed"
             else:
                 job.status = "retrying"
-                job.run_after = datetime.utcnow() + timedelta(seconds=min(60, 2**job.attempts * 5))
+                job.run_after = utcnow() + timedelta(seconds=min(60, 2**job.attempts * 5))
                 if investigation:
                     investigation.status = "queued"
             await db.commit()

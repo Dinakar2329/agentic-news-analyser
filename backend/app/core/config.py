@@ -15,6 +15,8 @@ class Settings(BaseSettings):
     cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173"
     default_search_provider: str = "duckduckgo"
     duckduckgo_timeout: float = 8.0
+    provider_timeout: float = 45.0
+    job_worker_count: int = 2
 
     openai_api_key: str | None = None
     anthropic_api_key: str | None = None

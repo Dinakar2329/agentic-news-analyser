@@ -1,6 +1,10 @@
 import json
+import logging
 import re
 from urllib.parse import urlparse
+
+from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 
 from app.database.session import async_session_maker
 from app.models.tables import Agent, Finding, Source
@@ -10,13 +14,24 @@ from app.search.duckduckgo import DuckDuckGoSearch
 from app.search.extractor import extract_article
 
 
+logger = logging.getLogger(__name__)
+
+
 class AgentWorker:
-    def __init__(self, emit, scoring: ScoringEngine, provider: ModelProvider | None = None, model: str | None = None):
+    def __init__(
+        self,
+        emit,
+        scoring: ScoringEngine,
+        provider: ModelProvider | None = None,
+        model: str | None = None,
+        speed_accuracy: int = 60,
+    ):
         self.emit = emit
         self.search = DuckDuckGoSearch()
         self.scoring = scoring
         self.provider = provider
         self.model = model
+        self.speed_accuracy = max(0, min(100, speed_accuracy))
 
     async def run(self, investigation_id: str, claim: str, index: int, search_depth: int, role: dict | None = None) -> tuple[list[SourceScore], list[dict]]:
         async with async_session_maker() as db:
@@ -49,8 +64,20 @@ class AgentWorker:
             return scores, findings
 
         for position, result in enumerate(results, start=1):
-            article = await extract_article(result["url"])
-            domain = result.get("domain") or urlparse(result["url"]).netloc.replace("www.", "")
+            url = result["url"]
+            existing_source = await db.scalar(
+                select(Source).where(Source.investigation_id == investigation_id, Source.url == url)
+            )
+            if existing_source:
+                logger.info(
+                    "agent_skipping_duplicate_source investigation_id=%s url=%s existing_agent_id=%s",
+                    investigation_id,
+                    url,
+                    existing_source.agent_id,
+                )
+                continue
+            article = await extract_article(url)
+            domain = result.get("domain") or urlparse(url).netloc.replace("www.", "")
             score = self.scoring.score_source(domain, article["title"] or result["title"], article["text"])
             relevance = self._claim_relevance(claim, f"{result.get('title', '')} {result.get('snippet', '')} {article['title']} {article['text']}")
             score.relevance_score = relevance
@@ -73,7 +100,16 @@ class AgentWorker:
                 extracted_text=article["text"] or result.get("snippet", ""),
             )
             db.add(source)
-            await db.commit()
+            try:
+                await db.commit()
+            except IntegrityError:
+                await db.rollback()
+                logger.info(
+                    "agent_dropped_duplicate_source_on_commit investigation_id=%s url=%s",
+                    investigation_id,
+                    url,
+                )
+                continue
             await db.refresh(source)
             scores.append(score)
 
@@ -153,10 +189,11 @@ class AgentWorker:
 
     async def _classify_stance(self, claim: str, snippet: str, text: str, score: SourceScore, relevance: float, role: dict) -> dict:
         heuristic_stance = self._heuristic_stance(claim, snippet, text, score, relevance, role)
-        if not self.provider or not self.model or relevance < 35:
+        model_relevance_threshold = self._model_relevance_threshold()
+        if not self.provider or not self.model or relevance < model_relevance_threshold:
             return {
                 "stance": heuristic_stance,
-                "reason": "Heuristic classifier used because model stance analysis was unavailable or evidence was low relevance.",
+                "reason": "Heuristic classifier used because model stance analysis was unavailable, speed mode was prioritized, or evidence was low relevance.",
                 "source": "heuristic",
             }
         prompt = self._stance_prompt(claim, snippet, text, score, role)
@@ -172,6 +209,13 @@ class AgentWorker:
             "reason": "Heuristic classifier used after model stance analysis failed.",
             "source": "heuristic",
         }
+
+    def _model_relevance_threshold(self) -> int:
+        if self.speed_accuracy >= 75:
+            return 25
+        if self.speed_accuracy <= 25:
+            return 55
+        return 35
 
     def _heuristic_stance(self, claim: str, snippet: str, text: str, score: SourceScore, relevance: float, role: dict) -> str:
         evidence = f"{snippet} {text}".lower()

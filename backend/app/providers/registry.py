@@ -2,13 +2,39 @@ import asyncio
 import logging
 from typing import Any
 
+import anthropic
+import openai
 from anthropic import AsyncAnthropic
 from google import genai
-from mistralai import Mistral
 from openai import AsyncOpenAI
+
+try:
+    from mistralai import Mistral as _Mistral
+except ImportError:  # mistralai is currently quarantined on PyPI
+    _Mistral = None
 
 from app.core.config import settings
 from app.providers.base import ModelProvider, ProviderAuthError, ProviderError, ProviderRateLimitError
+
+
+_TYPED_AUTH_ERRORS: tuple[type[Exception], ...] = (
+    openai.AuthenticationError,
+    openai.PermissionDeniedError,
+    anthropic.AuthenticationError,
+    anthropic.PermissionDeniedError,
+)
+_TYPED_RATE_LIMIT_ERRORS: tuple[type[Exception], ...] = (
+    openai.RateLimitError,
+    anthropic.RateLimitError,
+)
+_TYPED_RETRYABLE_ERRORS: tuple[type[Exception], ...] = (
+    openai.APITimeoutError,
+    openai.APIConnectionError,
+    openai.InternalServerError,
+    anthropic.APITimeoutError,
+    anthropic.APIConnectionError,
+    anthropic.InternalServerError,
+)
 
 
 SYSTEM_INSTRUCTION = (
@@ -20,6 +46,15 @@ logger = logging.getLogger(__name__)
 
 
 def _classify_provider_error(display_name: str, exc: Exception) -> ProviderError:
+    if isinstance(exc, TimeoutError):
+        return ProviderError(f"{display_name} generation timed out", retryable=True)
+    if isinstance(exc, _TYPED_AUTH_ERRORS):
+        return ProviderAuthError(f"{display_name} authentication failed")
+    if isinstance(exc, _TYPED_RATE_LIMIT_ERRORS):
+        return ProviderRateLimitError(f"{display_name} rate limit reached")
+    if isinstance(exc, _TYPED_RETRYABLE_ERRORS):
+        return ProviderError(f"{display_name} generation temporarily failed", retryable=True)
+
     status_code = getattr(exc, "status_code", None)
     message = str(exc).lower()
     if status_code in {401, 403} or "unauthorized" in message or "invalid api key" in message:
@@ -36,7 +71,7 @@ async def _with_provider_retries(operation, display_name: str, attempts: int = 3
     last_error: ProviderError | None = None
     for attempt in range(attempts):
         try:
-            return await operation()
+            return await asyncio.wait_for(operation(), timeout=settings.provider_timeout)
         except Exception as exc:
             provider_error = exc if isinstance(exc, ProviderError) else _classify_provider_error(display_name, exc)
             last_error = provider_error
@@ -57,11 +92,16 @@ class OpenAICompatibleProvider(ModelProvider):
         models: list[dict],
         api_key: str | None = None,
         base_url: str | None = None,
+        openai_reasoning_chat: bool = False,
+        supports_tool_use: bool = True,
     ):
         self.name = name
         self.display_name = display_name
         self.models = models
         self.base_url = base_url
+        self.openai_reasoning_chat = openai_reasoning_chat
+        self._reasoning_model_ids = {entry["id"] for entry in models if entry.get("reasoning")}
+        self.supports_tool_use = supports_tool_use
         super().__init__(api_key)
 
     def _client(self) -> AsyncOpenAI:
@@ -78,16 +118,27 @@ class OpenAICompatibleProvider(ModelProvider):
         await self._client().models.list()
         return True
 
+    def _is_reasoning(self, model: str) -> bool:
+        return model in self._reasoning_model_ids
+
     async def generate(self, prompt: str, model: str) -> str:
+        is_reasoning = self._is_reasoning(model)
+        uses_openai_reasoning_chat = is_reasoning and self.openai_reasoning_chat
+        system_role = "developer" if uses_openai_reasoning_chat else "system"
+        request_kwargs: dict[str, Any] = {
+            "model": model,
+            "messages": [
+                {"role": system_role, "content": SYSTEM_INSTRUCTION},
+                {"role": "user", "content": prompt},
+            ],
+        }
+        if uses_openai_reasoning_chat:
+            request_kwargs["max_completion_tokens"] = 2000
+        else:
+            request_kwargs["max_tokens"] = 1500
+
         async def operation():
-            response = await self._client().chat.completions.create(
-                model=model,
-                messages=[
-                    {"role": "system", "content": SYSTEM_INSTRUCTION},
-                    {"role": "user", "content": prompt},
-                ],
-            )
-            return response
+            return await self._client().chat.completions.create(**request_kwargs)
 
         response = await _with_provider_retries(operation, self.display_name)
         return response.choices[0].message.content or ""
@@ -99,6 +150,7 @@ class AnthropicProvider(ModelProvider):
 
     def __init__(self, models: list[dict], api_key: str | None = None):
         self.models = models
+        self.supports_tool_use = True
         super().__init__(api_key)
 
     def _client(self) -> AsyncAnthropic:
@@ -132,6 +184,7 @@ class GoogleProvider(ModelProvider):
 
     def __init__(self, models: list[dict], api_key: str | None = None):
         self.models = models
+        self.supports_tool_use = True
         super().__init__(api_key)
 
     def _client(self):
@@ -191,12 +244,21 @@ class MistralProvider(ModelProvider):
 
     def __init__(self, models: list[dict], api_key: str | None = None):
         self.models = models
+        self.supports_tool_use = True
         super().__init__(api_key)
 
-    def _client(self) -> Mistral:
+    def is_runtime_available(self) -> bool:
+        return _Mistral is not None
+
+    def _client(self):
+        if _Mistral is None:
+            raise ProviderError(
+                "Mistral SDK is not installed (the `mistralai` package is currently unavailable on PyPI)",
+                retryable=False,
+            )
         if not self.api_key:
             raise ProviderAuthError("Mistral API key is not configured")
-        return Mistral(api_key=self.api_key)
+        return _Mistral(api_key=self.api_key)
 
     async def validate_key(self) -> bool:
         if not await super().validate_key():
@@ -227,6 +289,7 @@ PROVIDER_SPECS = {
         "display": "OpenAI",
         "env_key": "openai_api_key",
         "kind": "openai_compatible",
+        "openai_reasoning_chat": True,
         "models": [
             {"id": "gpt-4o", "label": "GPT-4o", "reasoning": False},
             {"id": "gpt-5", "label": "GPT-5", "reasoning": True},
@@ -292,6 +355,8 @@ def provider_for_name(name: str, api_key: str | None = None) -> ModelProvider:
         models=spec["models"],
         api_key=resolved_key,
         base_url=spec.get("base_url"),
+        openai_reasoning_chat=bool(spec.get("openai_reasoning_chat")),
+        supports_tool_use=bool(spec.get("supports_tool_use", True)),
     )
 
 
@@ -309,12 +374,16 @@ def public_model_registry(configured: set[str] | None = None) -> list[dict]:
     configured = configured or set()
     rows = []
     for name, provider in provider_registry().items():
-        available = bool(provider.api_key) or name in configured
+        runtime_available = provider.is_runtime_available()
+        available = runtime_available and (bool(provider.api_key) or name in configured)
+        unavailable_reason = None if runtime_available else "Provider SDK is not installed in this backend runtime"
         rows.append(
             {
                 "id": name,
                 "name": provider.display_name,
                 "available": available,
+                "runtime_available": runtime_available,
+                "unavailable_reason": unavailable_reason,
                 "capabilities": provider.capabilities(),
                 "models": provider.list_models(),
             }

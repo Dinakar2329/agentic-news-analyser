@@ -1,9 +1,9 @@
-from datetime import datetime
-
 import pytest
 import pytest_asyncio
+import asyncio
 from sqlalchemy import delete, select
 
+from app.core.time import utcnow
 from app.database.session import async_session_maker
 from app.models.tables import Agent, Event, Finding, GraphSnapshot, Investigation, InvestigationJob, Source
 from app.orchestration.jobs import InvestigationJobService
@@ -68,6 +68,26 @@ async def test_claim_next_job_marks_investigation_running():
 
 
 @pytest.mark.asyncio
+async def test_claim_next_job_only_claims_once_under_competing_workers():
+    investigation = Investigation(
+        user_id="user-claim-race",
+        claim="Race claim with enough length",
+        selected_provider="openai",
+        selected_model="gpt-4o",
+    )
+    async with async_session_maker() as db:
+        db.add(investigation)
+        await db.commit()
+        await db.refresh(investigation)
+
+    service = InvestigationJobService()
+    await service.enqueue(investigation.id)
+    claimed = await asyncio.gather(service._claim_next_job(), service._claim_next_job())
+
+    assert sum(job is not None for job in claimed) == 1
+
+
+@pytest.mark.asyncio
 async def test_recover_interrupted_jobs_requeues_running_jobs():
     investigation = Investigation(
         user_id="user-3",
@@ -85,7 +105,7 @@ async def test_recover_interrupted_jobs_requeues_running_jobs():
                 investigation_id=investigation.id,
                 status="running",
                 attempts=1,
-                locked_at=datetime.utcnow(),
+                locked_at=utcnow(),
             )
         )
         await db.commit()

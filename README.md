@@ -29,8 +29,8 @@ Frontend:
 
 ```powershell
 cd frontend
-cmd /c npm install
-cmd /c npm run dev
+npm.cmd install
+npm.cmd run dev
 ```
 
 Open `http://localhost:5173`.
@@ -115,6 +115,6 @@ cmd /c npm test
 
 ## Provider Notes
 
-OpenAI uses the official SDK pattern. Anthropic uses Messages API semantics. Google uses `google-genai`. Mistral uses `mistralai`. Groq and DeepSeek are OpenAI-compatible providers with provider-specific base URLs. Meta/Llama is represented through Groq-hosted Llama models in v1.
+OpenAI uses the official SDK pattern. Anthropic uses Messages API semantics. Google uses `google-genai`. Mistral is exposed only when the optional `mistralai` SDK is installed in the backend runtime. Groq and DeepSeek are OpenAI-compatible providers with provider-specific base URLs. Meta/Llama is represented through Groq-hosted Llama models in v1.
 
 If no provider key is configured, the app still runs the live investigation pipeline and synthesizes deterministic evidence summaries from gathered source scores.

@@ -1,8 +1,10 @@
 from datetime import datetime
 from uuid import uuid4
 
-from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Integer, String, Text
+from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Index, Integer, String, Text
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
+
+from app.core.time import utcnow
 
 
 def new_id() -> str:
@@ -19,20 +21,21 @@ class User(Base):
     id: Mapped[str] = mapped_column(String, primary_key=True, default=new_id)
     email: Mapped[str] = mapped_column(String(320), unique=True, index=True)
     password_hash: Mapped[str] = mapped_column(String(255))
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
 
     api_keys: Mapped[list["ApiKey"]] = relationship(back_populates="user")
 
 
 class ApiKey(Base):
     __tablename__ = "api_keys"
+    __table_args__ = (Index("uq_api_keys_user_provider", "user_id", "provider", unique=True),)
 
     id: Mapped[str] = mapped_column(String, primary_key=True, default=new_id)
     user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
     provider: Mapped[str] = mapped_column(String(80), index=True)
     encrypted_key: Mapped[str] = mapped_column(Text)
     key_hint: Mapped[str] = mapped_column(String(32))
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
     last_validated_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
     user: Mapped[User] = relationship(back_populates="api_keys")
@@ -52,7 +55,7 @@ class Investigation(Base):
     speed_accuracy: Mapped[int] = mapped_column(Integer, default=60)
     verdict: Mapped[str | None] = mapped_column(String(40), nullable=True)
     confidence: Mapped[float | None] = mapped_column(Float, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
     completed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
 
@@ -64,11 +67,11 @@ class InvestigationJob(Base):
     status: Mapped[str] = mapped_column(String(40), default="queued", index=True)
     attempts: Mapped[int] = mapped_column(Integer, default=0)
     max_attempts: Mapped[int] = mapped_column(Integer, default=3)
-    run_after: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
+    run_after: Mapped[datetime] = mapped_column(DateTime, default=utcnow, index=True)
     locked_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     last_error: Mapped[str | None] = mapped_column(Text, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)
 
 
 class Event(Base):
@@ -78,7 +81,7 @@ class Event(Base):
     investigation_id: Mapped[str] = mapped_column(ForeignKey("investigations.id", ondelete="CASCADE"), index=True)
     type: Mapped[str] = mapped_column(String(80), index=True)
     payload_json: Mapped[str] = mapped_column(Text)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
 
 
 class Agent(Base):
@@ -95,6 +98,7 @@ class Agent(Base):
 
 class Source(Base):
     __tablename__ = "sources"
+    __table_args__ = (Index("uq_sources_investigation_url", "investigation_id", "url", unique=True),)
 
     id: Mapped[str] = mapped_column(String, primary_key=True, default=new_id)
     investigation_id: Mapped[str] = mapped_column(ForeignKey("investigations.id", ondelete="CASCADE"), index=True)
@@ -132,4 +136,4 @@ class GraphSnapshot(Base):
     investigation_id: Mapped[str] = mapped_column(ForeignKey("investigations.id", ondelete="CASCADE"), index=True)
     nodes_json: Mapped[str] = mapped_column(Text)
     edges_json: Mapped[str] = mapped_column(Text)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)

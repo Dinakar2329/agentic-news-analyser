@@ -8,6 +8,7 @@ from app.api.routes import router
 from app.core.config import settings
 from app.core.logging import configure_logging
 from app.database.session import engine
+from app.database.invariants import ensure_database_invariants
 from app.models.tables import Base
 from app.orchestration.jobs import job_service
 
@@ -18,6 +19,7 @@ async def lifespan(app: FastAPI):
     configure_logging()
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        await conn.run_sync(ensure_database_invariants)
     job_worker = asyncio.create_task(job_service.run_forever())
     app.state.job_worker = job_worker
     yield

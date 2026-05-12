@@ -1,11 +1,11 @@
 import asyncio
 import json
-from datetime import datetime
 
 from sqlalchemy import select
 
 from app.agents.worker import AgentWorker
 from app.auth.security import decrypt_api_key
+from app.core.time import utcnow
 from app.database.session import async_session_maker
 from app.models.tables import ApiKey, Event, GraphSnapshot, Investigation
 from app.providers.base import ModelProvider, ProviderError
@@ -40,20 +40,23 @@ class OrchestratorService:
                     "agent_count": investigation.agent_count,
                     "model": investigation.selected_model,
                     "provider": investigation.selected_provider,
+                    "speed_accuracy": investigation.speed_accuracy,
                 },
             )
 
             await self._emit(investigation_id, "graph_updated", graph)
             roles = self._agent_roles(investigation.claim, investigation.agent_count)
+            effective_search_depth = self._effective_search_depth(investigation.search_depth, investigation.speed_accuracy)
             provider = await self._provider_for_investigation(investigation)
             worker = AgentWorker(
                 emit=emit,
                 scoring=self.scoring,
                 provider=provider,
                 model=investigation.selected_model,
+                speed_accuracy=investigation.speed_accuracy,
             )
             tasks = [
-                worker.run(investigation_id, investigation.claim, index + 1, investigation.search_depth, roles[index])
+                worker.run(investigation_id, investigation.claim, index + 1, effective_search_depth, roles[index])
                 for index in range(len(roles))
             ]
             results = await asyncio.gather(*tasks, return_exceptions=True)
@@ -77,7 +80,7 @@ class OrchestratorService:
             investigation.status = "complete"
             investigation.verdict = verdict["verdict"]
             investigation.confidence = verdict["confidence"]
-            investigation.completed_at = datetime.utcnow()
+            investigation.completed_at = utcnow()
             await db.commit()
 
             summary = {
@@ -127,8 +130,11 @@ class OrchestratorService:
                         edges_json=json.dumps(payload["edges"]),
                     )
                 )
+            await db.flush()
+            event_id = event.id
+            created_at = event.created_at.isoformat()
             await db.commit()
-        await manager.broadcast(investigation_id, event_type, payload)
+        await manager.broadcast(investigation_id, event_type, payload, event_id=event_id, created_at=created_at)
 
     def _graph_payload(self, investigation_id: str, nodes: list, edges: list) -> dict:
         return {"investigation_id": investigation_id, "nodes": nodes, "edges": edges}
@@ -325,6 +331,13 @@ class OrchestratorService:
             },
         ]
         return templates[:agent_count]
+
+    def _effective_search_depth(self, requested_depth: int, speed_accuracy: int) -> int:
+        if speed_accuracy >= 75:
+            return min(5, requested_depth + 1)
+        if speed_accuracy <= 25:
+            return max(1, requested_depth - 1)
+        return requested_depth
 
     def _stance_counts(self, findings: list[dict]) -> dict[str, int]:
         counts: dict[str, int] = {}
