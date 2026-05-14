@@ -23,8 +23,9 @@ export function LandingPage({ onCTA, onOpenBYOK }) {
             Verify viral news, <em>before</em> it goes viral.
           </h1>
           <p className="sub">
-            Veritas dispatches specialist agents to cross-check claims against primary sources,
-            news reports, and contradiction searches in real time.
+            Angetic News Analyser dispatches specialist agents to cross-check
+            claims against primary sources, news reports, and contradiction
+            searches in real time.
           </p>
           <div className="cta-row">
             <button className="btn btn-primary btn-lg" onClick={onCTA}>
@@ -54,7 +55,9 @@ export function LandingPage({ onCTA, onOpenBYOK }) {
         <header className="section-head">
           <div className="kicker">Capabilities</div>
           <h2>The investigative loop, parallelized.</h2>
-          <p className="lead">Six pieces of the real backend pipeline exposed as a premium tool.</p>
+          <p className="lead">
+            Six pieces of the real backend pipeline exposed as a premium tool.
+          </p>
         </header>
         <FeatureGrid />
 
@@ -66,19 +69,21 @@ export function LandingPage({ onCTA, onOpenBYOK }) {
 
         <section className="cta-section">
           <h2>
-            Stop guessing. Start <em style={{ color: "var(--accent)", fontStyle: "italic" }}>knowing</em>.
+            Stop guessing. Start{" "}
+            <em style={{ color: "var(--accent)", fontStyle: "italic" }}>
+              knowing
+            </em>
+            .
           </h2>
-          <p>Paste any headline, tweet, article, or rumor. Watch a transparent investigation play out.</p>
+          <p>
+            Paste any headline, tweet, article, or rumor. Watch a transparent
+            investigation play out.
+          </p>
           <button className="btn btn-primary btn-lg" onClick={onCTA}>
             Open the investigator
             <Icon.Arrow />
           </button>
         </section>
-
-        <footer className="foot">
-          <span>VERITAS 2026 multi-agent runtime</span>
-          <span>React, WebSocket, React Flow, TanStack Query</span>
-        </footer>
       </div>
     </div>
   );
@@ -93,7 +98,9 @@ function ArchPreview() {
           <span />
           <span />
         </span>
-        <span style={{ marginLeft: 8 }}>veritas live investigation graph</span>
+        <span style={{ marginLeft: 8 }}>
+          Angetic News Analyser live investigation graph
+        </span>
         <span style={{ marginLeft: "auto" }}>READY</span>
       </div>
       <div className="arch-body">
@@ -116,7 +123,13 @@ function MiniGraph() {
   ];
 
   return (
-    <svg viewBox="0 0 900 320" width="100%" height="320" style={{ display: "block" }} aria-hidden="true">
+    <svg
+      viewBox="0 0 900 320"
+      width="100%"
+      height="320"
+      style={{ display: "block" }}
+      aria-hidden="true"
+    >
       <defs>
         <radialGradient id="mini-orb" cx="50%" cy="50%" r="50%">
           <stop offset="0%" stopColor="var(--accent)" stopOpacity="0.9" />
@@ -128,17 +141,43 @@ function MiniGraph() {
       {edges.map(([d, duration], index) => (
         <g key={index}>
           <path d={d} className="edge" />
-          <path d={d} className="edge active" style={{ animationDuration: duration }} />
+          <path
+            d={d}
+            className="edge active"
+            style={{ animationDuration: duration }}
+          />
         </g>
       ))}
 
       <g transform="translate(140, 160)">
         <circle r="44" fill="url(#mini-orb)" />
-        <rect x="-50" y="-22" width="100" height="44" rx="10" fill="var(--surface)" stroke="var(--border-strong)" />
-        <text x="0" y="-2" textAnchor="middle" fill="var(--text)" fontSize="11" fontWeight="600">
+        <rect
+          x="-50"
+          y="-22"
+          width="100"
+          height="44"
+          rx="10"
+          fill="var(--surface)"
+          stroke="var(--border-strong)"
+        />
+        <text
+          x="0"
+          y="-2"
+          textAnchor="middle"
+          fill="var(--text)"
+          fontSize="11"
+          fontWeight="600"
+        >
           Orchestrator
         </text>
-        <text x="0" y="13" textAnchor="middle" fill="var(--accent)" fontSize="9" fontFamily="var(--font-mono)">
+        <text
+          x="0"
+          y="13"
+          textAnchor="middle"
+          fill="var(--accent)"
+          fontSize="9"
+          fontFamily="var(--font-mono)"
+        >
           CONFIDENCE 78%
         </text>
       </g>
@@ -149,9 +188,25 @@ function MiniGraph() {
         ["Contradict", 240, "A3"],
       ].map(([name, y, code]) => (
         <g key={code} transform={`translate(420, ${y})`}>
-          <rect x="-44" y="-16" width="88" height="32" rx="6" fill="var(--surface)" stroke="var(--border-strong)" />
+          <rect
+            x="-44"
+            y="-16"
+            width="88"
+            height="32"
+            rx="6"
+            fill="var(--surface)"
+            stroke="var(--border-strong)"
+          />
           <circle cx="-28" cy="0" r="9" fill="var(--surface-3)" />
-          <text x="-28" y="3" textAnchor="middle" fill="var(--text)" fontSize="9" fontFamily="var(--font-mono)" fontWeight="600">
+          <text
+            x="-28"
+            y="3"
+            textAnchor="middle"
+            fill="var(--text)"
+            fontSize="9"
+            fontFamily="var(--font-mono)"
+            fontWeight="600"
+          >
             {code}
           </text>
           <text x="-10" y="3" fill="var(--text)" fontSize="10" fontWeight="500">
@@ -168,8 +223,23 @@ function MiniGraph() {
         ["WIRE", 270],
       ].map(([host, y]) => (
         <g key={host} transform={`translate(700, ${y})`}>
-          <rect x="-32" y="-12" width="64" height="24" rx="5" fill="var(--surface-2)" stroke="var(--border)" />
-          <text x="0" y="3" textAnchor="middle" fill="var(--text-2)" fontSize="9" fontFamily="var(--font-mono)">
+          <rect
+            x="-32"
+            y="-12"
+            width="64"
+            height="24"
+            rx="5"
+            fill="var(--surface-2)"
+            stroke="var(--border)"
+          />
+          <text
+            x="0"
+            y="3"
+            textAnchor="middle"
+            fill="var(--text-2)"
+            fontSize="9"
+            fontFamily="var(--font-mono)"
+          >
             {host}
           </text>
         </g>
@@ -180,12 +250,36 @@ function MiniGraph() {
 
 function FeatureGrid() {
   const features = [
-    { icon: <Icon.Network />, title: "Parallel agents", body: "Specialist agents fan out to official, trusted, contradiction, and context searches." },
-    { icon: <Icon.Brain />, title: "Live reasoning", body: "Every source discovery, score update, and verdict event streams from the backend." },
-    { icon: <Icon.Shield />, title: "Primary-source first", body: "Official sources and filings receive higher scoring weight than social reposts." },
-    { icon: <Icon.Globe />, title: "Adversarial sweep", body: "Dedicated queries look for denials, corrections, fact checks, and counter-evidence." },
-    { icon: <Icon.Bolt />, title: "BYOK runtime", body: "Connect OpenAI, Anthropic, Gemini, Groq, DeepSeek, or other configured providers." },
-    { icon: <Icon.Eye />, title: "Auditable verdicts", body: "Confidence, truth probability, bias, source quality, and full citations remain visible." },
+    {
+      icon: <Icon.Network />,
+      title: "Parallel agents",
+      body: "Specialist agents fan out to official, trusted, contradiction, and context searches.",
+    },
+    {
+      icon: <Icon.Brain />,
+      title: "Live reasoning",
+      body: "Every source discovery, score update, and verdict event streams from the backend.",
+    },
+    {
+      icon: <Icon.Shield />,
+      title: "Primary-source first",
+      body: "Official sources and filings receive higher scoring weight than social reposts.",
+    },
+    {
+      icon: <Icon.Globe />,
+      title: "Adversarial sweep",
+      body: "Dedicated queries look for denials, corrections, fact checks, and counter-evidence.",
+    },
+    {
+      icon: <Icon.Bolt />,
+      title: "BYOK runtime",
+      body: "Connect OpenAI, Anthropic, Gemini, Groq, DeepSeek, or other configured providers.",
+    },
+    {
+      icon: <Icon.Eye />,
+      title: "Auditable verdicts",
+      body: "Confidence, truth probability, bias, source quality, and full citations remain visible.",
+    },
   ];
 
   return (
@@ -204,10 +298,26 @@ function FeatureGrid() {
 
 function WorkflowStrip() {
   const steps = [
-    { number: "01", title: "Submit", body: "Paste a tweet, headline, claim, or article body." },
-    { number: "02", title: "Dispatch", body: "The backend creates a queued investigation job." },
-    { number: "03", title: "Investigate", body: "Agents search, extract, score, and classify sources." },
-    { number: "04", title: "Verdict", body: "A confidence-weighted synthesis streams back over WebSocket." },
+    {
+      number: "01",
+      title: "Submit",
+      body: "Paste a tweet, headline, claim, or article body.",
+    },
+    {
+      number: "02",
+      title: "Dispatch",
+      body: "The backend creates a queued investigation job.",
+    },
+    {
+      number: "03",
+      title: "Investigate",
+      body: "Agents search, extract, score, and classify sources.",
+    },
+    {
+      number: "04",
+      title: "Verdict",
+      body: "A confidence-weighted synthesis streams back over WebSocket.",
+    },
   ];
 
   return (
@@ -229,8 +339,21 @@ function WorkflowStrip() {
 function WorkflowGlyph({ index }) {
   if (index === 0) {
     return (
-      <div style={{ flex: 1, height: 32, borderRadius: 6, border: "1px solid var(--border-soft)", background: "var(--surface-2)", padding: "6px 8px", fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-3)" }}>
-        &gt; "JPMorgan files lawsuit"<span className="cursor" style={{ height: "0.8em" }} />
+      <div
+        style={{
+          flex: 1,
+          height: 32,
+          borderRadius: 6,
+          border: "1px solid var(--border-soft)",
+          background: "var(--surface-2)",
+          padding: "6px 8px",
+          fontFamily: "var(--font-mono)",
+          fontSize: 10,
+          color: "var(--text-3)",
+        }}
+      >
+        &gt; "JPMorgan files lawsuit"
+        <span className="cursor" style={{ height: "0.8em" }} />
       </div>
     );
   }
@@ -238,7 +361,21 @@ function WorkflowGlyph({ index }) {
     return (
       <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
         {[0, 1, 2, 3].map((item) => (
-          <span key={item} style={{ width: 18, height: 18, borderRadius: 4, background: "var(--surface-2)", border: "1px solid var(--border-soft)", display: "grid", placeItems: "center", fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--accent)" }}>
+          <span
+            key={item}
+            style={{
+              width: 18,
+              height: 18,
+              borderRadius: 4,
+              background: "var(--surface-2)",
+              border: "1px solid var(--border-soft)",
+              display: "grid",
+              placeItems: "center",
+              fontFamily: "var(--font-mono)",
+              fontSize: 9,
+              color: "var(--accent)",
+            }}
+          >
             A{item + 1}
           </span>
         ))}
@@ -247,17 +384,48 @@ function WorkflowGlyph({ index }) {
   }
   if (index === 2) {
     return (
-      <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 3 }}>
+      <div
+        style={{ flex: 1, display: "flex", flexDirection: "column", gap: 3 }}
+      >
         {[80, 55, 72].map((width) => (
-          <span key={width} style={{ height: 3, background: "var(--surface-3)", borderRadius: 99, overflow: "hidden" }}>
-            <span style={{ display: "block", height: "100%", width: `${width}%`, background: "var(--accent)", boxShadow: "0 0 6px var(--accent-glow)" }} />
+          <span
+            key={width}
+            style={{
+              height: 3,
+              background: "var(--surface-3)",
+              borderRadius: 99,
+              overflow: "hidden",
+            }}
+          >
+            <span
+              style={{
+                display: "block",
+                height: "100%",
+                width: `${width}%`,
+                background: "var(--accent)",
+                boxShadow: "0 0 6px var(--accent-glow)",
+              }}
+            />
           </span>
         ))}
       </div>
     );
   }
   return (
-    <div style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "4px 10px", borderRadius: 99, background: "var(--accent-soft)", color: "var(--accent)", fontFamily: "var(--font-mono)", fontSize: 10, border: "1px solid var(--accent-dim)" }}>
+    <div
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 6,
+        padding: "4px 10px",
+        borderRadius: 99,
+        background: "var(--accent-soft)",
+        color: "var(--accent)",
+        fontFamily: "var(--font-mono)",
+        fontSize: 10,
+        border: "1px solid var(--accent-dim)",
+      }}
+    >
       <Icon.Check /> MOSTLY TRUE 78%
     </div>
   );

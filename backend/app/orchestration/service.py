@@ -75,7 +75,7 @@ class OrchestratorService:
                 await emit("error", {"message": "Some agents failed", "details": errors[:3]})
 
             stance_counts = self._stance_counts(all_findings)
-            contradiction_count = stance_counts.get("refutes", 0) + stance_counts.get("unrelated", 0)
+            contradiction_count = stance_counts.get("refutes", 0)
             verdict = self.scoring.aggregate_verdict(all_scores, contradiction_count, stance_counts)
             investigation.status = "complete"
             investigation.verdict = verdict["verdict"]

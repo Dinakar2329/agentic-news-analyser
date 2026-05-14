@@ -1,9 +1,11 @@
 import axios from "axios";
 
-export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
-export const WS_BASE_URL = import.meta.env.VITE_WS_BASE_URL || API_BASE_URL.replace(/^http/, "ws");
+export const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
+export const WS_BASE_URL =
+  import.meta.env.VITE_WS_BASE_URL || API_BASE_URL.replace(/^http/, "ws");
 
-const TOKEN_KEY = "veritas.access_token";
+const TOKEN_KEY = "angetic.access_token";
 
 export const api = axios.create({
   baseURL: API_BASE_URL,

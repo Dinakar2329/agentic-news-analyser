@@ -26,7 +26,9 @@ export default function App() {
     if (typeof window === "undefined") return "dark";
     const stored = window.localStorage.getItem("theme");
     if (stored === "light" || stored === "dark") return stored;
-    return window.matchMedia?.("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+    return window.matchMedia?.("(prefers-color-scheme: dark)").matches
+      ? "dark"
+      : "light";
   });
 
   useEffect(() => {
@@ -34,7 +36,13 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    document.documentElement.classList.toggle("dark", theme === "dark");
+    const html = document.documentElement;
+    html.dataset.theme = theme;
+    if (theme === "dark") {
+      html.classList.add("dark");
+    } else {
+      html.classList.remove("dark");
+    }
     window.localStorage.setItem("theme", theme);
   }, [theme]);
 
@@ -98,11 +106,21 @@ export default function App() {
           setScreen("landing");
         }}
         theme={theme}
-        onToggleTheme={() => setTheme((current) => (current === "dark" ? "light" : "dark"))}
+        onToggleTheme={() =>
+          setTheme((current) => (current === "dark" ? "light" : "dark"))
+        }
       />
 
-      {screen === "landing" && <LandingPage onCTA={startFlow} onOpenBYOK={openBYOK} />}
-      {screen === "chat" && <ChatScreen onBack={goLanding} onOpenBYOK={openBYOK} onRequireAuth={() => setAuthOpen(true)} />}
+      {screen === "landing" && (
+        <LandingPage onCTA={startFlow} onOpenBYOK={openBYOK} />
+      )}
+      {screen === "chat" && (
+        <ChatScreen
+          onBack={goLanding}
+          onOpenBYOK={openBYOK}
+          onRequireAuth={() => setAuthOpen(true)}
+        />
+      )}
       {screen === "investigation" && <InvestigationPage onBack={goChat} />}
 
       {byokOpen && <BYOKModal onClose={() => setByokOpen(false)} />}
@@ -118,8 +136,24 @@ export default function App() {
   );
 }
 
-function TopNav({ screen, user, investigation, onHome, onOpenBYOK, onNewSession, onAuth, onSignOut, theme, onToggleTheme }) {
-  const crumb = screen === "landing" ? "home" : screen === "chat" ? "new investigation" : `session ${investigation.id?.slice(0, 4) || "live"}`;
+function TopNav({
+  screen,
+  user,
+  investigation,
+  onHome,
+  onOpenBYOK,
+  onNewSession,
+  onAuth,
+  onSignOut,
+  theme,
+  onToggleTheme,
+}) {
+  const crumb =
+    screen === "landing"
+      ? "home"
+      : screen === "chat"
+        ? "new investigation"
+        : `session ${investigation.id?.slice(0, 4) || "live"}`;
   const ThemeIcon = theme === "dark" ? Moon : Sun;
 
   return (
@@ -129,7 +163,7 @@ function TopNav({ screen, user, investigation, onHome, onOpenBYOK, onNewSession,
           <Icon.Logo />
         </div>
         <span className="brand-name">
-          veritas<span className="dot">.</span>
+          Angetic<span className="dot">.</span>
         </span>
       </button>
       <div className="crumbs">
@@ -143,30 +177,31 @@ function TopNav({ screen, user, investigation, onHome, onOpenBYOK, onNewSession,
             <Icon.Plus /> New
           </button>
         )}
-        {user && (
-          <button className="btn btn-ghost" onClick={onOpenBYOK}>
-            <Icon.Key /> Keys
-          </button>
-        )}
         {screen !== "investigation" && (
           <button className="btn btn-primary" onClick={onNewSession}>
             <Icon.Spark /> New investigation
           </button>
         )}
-        <button className="btn btn-ghost" onClick={onToggleTheme} title={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}>
+        <button
+          className="btn btn-ghost"
+          onClick={onToggleTheme}
+          title={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
+        >
           <ThemeIcon size={16} />
-          {theme === "dark" ? "Light" : "Dark"}
         </button>
         {user ? (
-          <button className="btn btn-ghost user-pill" onClick={onSignOut} title="Sign out">
-            <Icon.LogOut /> {user.email}
+          <button
+            className="btn btn-ghost user-pill"
+            onClick={onSignOut}
+            title="Sign out"
+          >
+            <Icon.Shield /> {user.email.split("@")[0]}
           </button>
         ) : (
           <button className="btn btn-ghost" onClick={onAuth}>
             Sign in
           </button>
         )}
-
       </div>
     </header>
   );

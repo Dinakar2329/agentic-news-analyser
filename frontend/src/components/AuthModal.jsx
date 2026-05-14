@@ -7,11 +7,14 @@ import { Icon } from "@/components/icons.jsx";
 export function AuthModal({ onClose, onAuthenticated }) {
   const [mode, setMode] = useState("login");
   const [email, setEmail] = useState("student@example.com");
-  const [password, setPassword] = useState("veritas-demo-2026");
+  const [password, setPassword] = useState("angetic-demo-2026");
   const setUser = useAppStore((state) => state.setUser);
 
   const mutation = useMutation({
-    mutationFn: () => (mode === "login" ? login({ email, password }) : register({ email, password })),
+    mutationFn: () =>
+      mode === "login"
+        ? login({ email, password })
+        : register({ email, password }),
     onSuccess: (data) => {
       setUser(data.user);
       onAuthenticated?.(data.user);
@@ -26,14 +29,23 @@ export function AuthModal({ onClose, onAuthenticated }) {
 
   return (
     <div className="modal-veil" onClick={onClose}>
-      <form className="auth-modal" onSubmit={submit} onClick={(event) => event.stopPropagation()}>
+      <form
+        className="auth-modal"
+        onSubmit={submit}
+        onClick={(event) => event.stopPropagation()}
+      >
         <div className="modal-head">
           <div className="ph-logo">
             <Icon.Logo />
           </div>
           <div>
-            <div className="ph-name">{mode === "login" ? "Sign in" : "Create account"}</div>
-            <div className="ph-desc">Required by the FastAPI backend before storing keys or starting jobs.</div>
+            <div className="ph-name">
+              {mode === "login" ? "Sign in" : "Create account"}
+            </div>
+            <div className="ph-desc">
+              Required by the FastAPI backend before storing keys or starting
+              jobs.
+            </div>
           </div>
           <div className="ph-close">
             <button type="button" className="iconbtn" onClick={onClose}>
@@ -48,7 +60,12 @@ export function AuthModal({ onClose, onAuthenticated }) {
               <span>Email</span>
             </div>
             <div className="key-input">
-              <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} required />
+              <input
+                type="email"
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+                required
+              />
             </div>
           </label>
           <label className="field">
@@ -57,14 +74,25 @@ export function AuthModal({ onClose, onAuthenticated }) {
               <span className="hint">minimum 8 characters</span>
             </div>
             <div className="key-input">
-              <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} required minLength={8} />
+              <input
+                type="password"
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                required
+                minLength={8}
+              />
             </div>
           </label>
 
-          {mutation.isError && <div className="inline-error">{apiErrorMessage(mutation.error)}</div>}
+          {mutation.isError && (
+            <div className="inline-error">
+              {apiErrorMessage(mutation.error)}
+            </div>
+          )}
 
           <div className="help">
-            Local dev tip: create a throwaway project account here. The backend stores only the password hash.
+            Local dev tip: create a throwaway project account here. The backend
+            stores only the password hash.
           </div>
         </div>
 
@@ -80,8 +108,16 @@ export function AuthModal({ onClose, onAuthenticated }) {
             <button type="button" className="btn btn-ghost" onClick={onClose}>
               Cancel
             </button>
-            <button type="submit" className="btn btn-primary" disabled={mutation.isPending}>
-              {mutation.isPending ? "Connecting..." : mode === "login" ? "Sign in" : "Register"}
+            <button
+              type="submit"
+              className="btn btn-primary"
+              disabled={mutation.isPending}
+            >
+              {mutation.isPending
+                ? "Connecting..."
+                : mode === "login"
+                  ? "Sign in"
+                  : "Register"}
             </button>
           </div>
         </div>

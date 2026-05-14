@@ -19,17 +19,22 @@ export function formatPercent(value, fallback = 0) {
 }
 
 export function verdictKey(verdict) {
-  return String(verdict || "UNVERIFIED").replaceAll(" ", "_").toUpperCase();
+  return String(verdict || "UNVERIFIED")
+    .trim()
+    .replaceAll(" ", "_")
+    .toUpperCase();
 }
 
 export function depthToNumber(depth) {
   if (typeof depth === "number") return clamp(depth, 1, 5);
-  return {
-    Quick: 1,
-    Standard: 3,
-    Deep: 4,
-    Exhaustive: 5,
-  }[depth] || 3;
+  return (
+    {
+      Quick: 1,
+      Standard: 3,
+      Deep: 4,
+      Exhaustive: 5,
+    }[depth] || 3
+  );
 }
 
 export function providerFromModel(modelId, providers = []) {
