@@ -98,9 +98,8 @@ export function InvestigationPage({ onBack }) {
           sources={investigation.sources}
           confidence={investigation.confidence}
           verdict={investigation.verdict}
+          status={investigation.wsStatus}
         />
-        <CanvasToolbar investigation={investigation} />
-        <CanvasLegend />
       </div>
 
       <div className="toast">

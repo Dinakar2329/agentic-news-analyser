@@ -202,7 +202,10 @@ class GoogleProvider(ModelProvider):
             if getattr(exc, "status_code", None) == 501 or "UNIMPLEMENTED" in str(exc):
                 # Some Google Gemini API keys or endpoints do not support models.list.
                 # Try a lightweight generation call instead.
-                model_id = self.models[0]["id"] if self.models else "gemini-2.5-pro"
+                model_id = next(
+                    (entry["id"] for entry in self.models if entry["id"] == "gemini-2.5-flash"),
+                    self.models[0]["id"] if self.models else "gemini-2.5-flash",
+                )
 
                 def _test_generate():
                     return self._client().models.generate_content(
@@ -310,8 +313,18 @@ PROVIDER_SPECS = {
         "env_key": "google_api_key",
         "kind": "google",
         "models": [
+            {"id": "gemini-3.1-pro-preview", "label": "Gemini 3.1 Pro Preview", "reasoning": True},
+            {
+                "id": "gemini-3.1-pro-preview-customtools",
+                "label": "Gemini 3.1 Pro Preview Custom Tools",
+                "reasoning": True,
+            },
+            {"id": "gemini-3-flash-preview", "label": "Gemini 3 Flash Preview", "reasoning": True},
+            {"id": "gemini-3.1-flash-lite", "label": "Gemini 3.1 Flash-Lite", "reasoning": True},
+            {"id": "gemini-3.1-flash-lite-preview", "label": "Gemini 3.1 Flash-Lite Preview", "reasoning": True},
             {"id": "gemini-2.5-pro", "label": "Gemini 2.5 Pro", "reasoning": True},
-            {"id": "gemini-2.5-flash", "label": "Gemini 2.5 Flash", "reasoning": False},
+            {"id": "gemini-2.5-flash", "label": "Gemini 2.5 Flash", "reasoning": True},
+            {"id": "gemini-2.5-flash-lite", "label": "Gemini 2.5 Flash-Lite", "reasoning": True},
         ],
     },
     "mistral": {

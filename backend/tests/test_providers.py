@@ -7,7 +7,9 @@ from app.providers.registry import _classify_provider_error, _Mistral, _with_pro
 
 def test_provider_registry_exposes_supported_models():
     assert "gpt-4o" in provider_model_ids("openai")
+    assert "gemini-3.1-pro-preview" in provider_model_ids("google")
     assert "gemini-2.5-pro" in provider_model_ids("google")
+    assert "gemini-2.5-flash-lite" in provider_model_ids("google")
     assert provider_model_ids("unknown") == set()
 
 

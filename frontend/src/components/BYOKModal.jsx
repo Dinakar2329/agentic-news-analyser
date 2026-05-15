@@ -7,7 +7,7 @@ import { Icon } from "@/components/icons.jsx";
 const PROVIDER_META = {
   openai: { logo: "OA", prefix: "sk-", desc: "GPT and o-series models" },
   anthropic: { logo: "AN", prefix: "sk-ant-", desc: "Claude Sonnet and Opus" },
-  google: { logo: "GG", prefix: "AIza", desc: "Gemini 2.5 models" },
+  google: { logo: "GG", prefix: "AIza", desc: "Gemini 2.5 and 3 models" },
   mistral: { logo: "MI", prefix: "", desc: "Mistral Large" },
   groq: { logo: "GQ", prefix: "gsk_", desc: "Groq-hosted fast inference" },
   deepseek: { logo: "DS", prefix: "sk-", desc: "DeepSeek reasoning models" },

@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { ReactFlow, Background, Controls, MiniMap, Handle, Position, MarkerType } from "@xyflow/react";
+import { ReactFlow, Background, Handle, Position } from "@xyflow/react";
 import { formatPercent } from "@/lib/utils";
 
 const nodeTypes = {
@@ -11,111 +11,215 @@ const nodeTypes = {
 const NODE_BASE_CLASS =
   "rf-node rounded-[var(--r-md)] border border-[var(--border)] text-[var(--text)] shadow-[var(--shadow-2)] backdrop-blur-xl";
 
-export function FlowCanvas({ graph, agents, sources, confidence, verdict }) {
+
+export function FlowCanvas({ graph, agents, sources, confidence, verdict, status = "ready" }) {
   const { nodes, edges } = useMemo(
     () => normalizeGraph(graph, agents, sources, confidence, verdict),
     [agents, confidence, graph, sources, verdict]
   );
+  const readyLabel = status === "live" ? "LIVE" : String(status || "ready").toUpperCase();
 
-  return (
-    <div className="react-flow-shell bg-[var(--canvas-bg-from)] dark:bg-[var(--bg-deep)]">
+return (
+  <div className="absolute inset-0 flex flex-col">
+    <div className="flow-stage-chrome">
+      <span className="dotz">
+        <span />
+        <span />
+        <span />
+      </span>
+      <span>Agentic News Analyser live investigation graph</span>
+      <span className="flow-stage-status">{readyLabel}</span>
+    </div>
+    <div className="flex-1 min-h-0 relative" style={{ background: "linear-gradient(180deg, var(--bg-deep), var(--bg))" }}>
       <ReactFlow
         nodes={nodes}
         edges={edges}
         nodeTypes={nodeTypes}
         fitView
-        fitViewOptions={{ padding: 0.24 }}
-        minZoom={0.35}
-        maxZoom={1.6}
+        fitViewOptions={{ padding: 0.28 }}
+        minZoom={0.45}
+        maxZoom={1.8}
+        nodesDraggable={false}
+        nodesConnectable={false}
+        elementsSelectable={false}
+        zoomOnDoubleClick={false}
         proOptions={{ hideAttribution: true }}
       >
-        <Background color="var(--canvas-grid-line)" gap={28} size={1} />
-        <Controls position="top-right" />
-        <MiniMap
-          position="bottom-right"
-          pannable
-          zoomable
-          nodeColor={(node) => {
-            if (node.type === "orchestrator") return "var(--accent)";
-            if (node.type === "source") return node.data?.official_badge ? "var(--accent)" : "var(--info)";
-            return "var(--surface-3)";
-          }}
-        />
+        <Background color="var(--canvas-grid-line)" gap={56} size={1} />
       </ReactFlow>
     </div>
-  );
+  </div>
+);
 }
 
 function normalizeGraph(graph, agentsById, sourcesById, confidence, verdict) {
-  if (graph?.nodes?.length) {
-    return {
-      nodes: graph.nodes.map((node) => ({
-        id: node.id,
-        type: node.type || "agent",
-        position: node.position || { x: 0, y: 0 },
-        data: {
-          ...node.data,
-          confidence: node.id === "orchestrator" ? confidence || node.data?.confidence || 0 : node.data?.confidence,
-          verdict: verdict || node.data?.verdict,
-        },
-      })),
-      edges: (graph.edges || []).map((edge) => ({
-        id: edge.id,
-        source: edge.source,
-        target: edge.target,
-        animated: edge.animated !== false,
-        markerEnd: { type: MarkerType.ArrowClosed, width: 14, height: 14 },
-        style: {
-          stroke: edge.data?.status === "refutes" ? "var(--danger)" : edge.data?.status === "supports" ? "var(--accent)" : "var(--border-strong)",
-          strokeWidth: Math.max(1, (edge.data?.weight || 0.5) * 3),
-        },
-      })),
-    };
-  }
+  const graphNodes = graph?.nodes?.length ? graph.nodes : fallbackGraphNodes(agentsById, sourcesById, confidence, verdict);
+  const graphEdges = graph?.nodes?.length ? graph.edges || [] : fallbackGraphEdges(agentsById, sourcesById);
+  const orchestrator = graphNodes.find((node) => node.id === "orchestrator") || {
+    id: "orchestrator",
+    type: "orchestrator",
+    data: {},
+  };
+  const agentNodes = graphNodes.filter((node) => (node.type || "agent") === "agent");
+  const sourceNodes = graphNodes.filter((node) => node.type === "source");
+  const agentOrder = agentNodes.map((node) => node.id);
+  const agentY = layoutAgentRows(agentNodes.length || 1);
+  const sourceParent = new Map(
+    graphEdges
+      .filter((edge) => sourceNodes.some((node) => node.id === edge.target))
+      .map((edge) => [edge.target, edge.source])
+  );
+  const sourcesByAgent = new Map(agentOrder.map((id) => [id, []]));
+  sourceNodes.forEach((source, index) => {
+    const fallbackAgent = agentOrder[index % Math.max(agentOrder.length, 1)];
+    const parent = sourceParent.get(source.id) || fallbackAgent;
+    if (!sourcesByAgent.has(parent)) sourcesByAgent.set(parent, []);
+    sourcesByAgent.get(parent).push(source);
+  });
 
-  const agents = Object.values(agentsById || {});
-  const sources = Object.values(sourcesById || {});
+  const laidOutSources = layoutSourceRows(agentOrder, agentY, sourcesByAgent);
+  const yValues = [...agentY, ...laidOutSources.map((item) => item.y), 0];
+  const orchestratorY = (Math.min(...yValues) + Math.max(...yValues)) / 2;
+
   const nodes = [
     {
-      id: "orchestrator",
+      id: orchestrator.id,
       type: "orchestrator",
-      position: { x: 0, y: 160 },
-      data: { label: "Orchestrator Agent", status: "running", confidence, verdict, task: "Waiting for graph events" },
+      position: { x: 0, y: orchestratorY },
+      data: {
+        ...orchestrator.data,
+        confidence: confidence || orchestrator.data?.confidence || 0,
+        verdict: verdict || orchestrator.data?.verdict,
+      },
     },
-    ...agents.map((agent, index) => ({
+    ...agentNodes.map((agent, index) => ({
       id: agent.id,
       type: "agent",
-      position: { x: 360, y: 40 + index * 160 },
-      data: agentToData(agent),
+      position: { x: 280, y: agentY[index] || 0 },
+      data: {
+        ...agent.data,
+        code: `A${index + 1}`,
+        shortLabel: agentLabel(agent.data, index),
+      },
     })),
-    ...sources.map((source, index) => ({
-      id: source.id,
+    ...laidOutSources.map(({ node, y, column }, index) => ({
+      id: node.id,
       type: "source",
-      position: { x: 760 + (index % 2) * 120, y: 40 + index * 92 },
-      data: sourceToData(source),
+      position: { x: 560 + column * 110, y },
+      data: {
+        ...node.data,
+        shortLabel: sourceLabel(node.data, index),
+      },
     })),
   ];
 
-  const edges = [
+  const edges = graphEdges
+    .filter((edge) => nodes.some((node) => node.id === edge.source) && nodes.some((node) => node.id === edge.target))
+    .map((edge) => ({
+      id: edge.id,
+      source: edge.source,
+      target: edge.target,
+      animated: edge.animated !== false,
+      type: "default",
+      style: edgeStyle(edge),
+    }));
+
+  return { nodes, edges };
+}
+
+function fallbackGraphNodes(agentsById, sourcesById, confidence, verdict) {
+  const agents = Object.values(agentsById || {});
+  const sources = Object.values(sourcesById || {});
+  return [
+    {
+      id: "orchestrator",
+      type: "orchestrator",
+      data: { label: "Orchestrator Agent", status: "running", confidence, verdict },
+    },
+    ...agents.map((agent) => ({
+      id: agent.id,
+      type: "agent",
+      data: agentToData(agent),
+    })),
+    ...sources.map((source) => ({
+      id: source.id,
+      type: "source",
+      data: sourceToData(source),
+    })),
+  ];
+}
+
+function fallbackGraphEdges(agentsById, sourcesById) {
+  const agents = Object.values(agentsById || {});
+  const sources = Object.values(sourcesById || {});
+  return [
     ...agents.map((agent) => ({
       id: `orchestrator-${agent.id}`,
       source: "orchestrator",
       target: agent.id,
       animated: true,
-      markerEnd: { type: MarkerType.ArrowClosed },
-      style: { stroke: "var(--border-strong)" },
+      data: { status: "active", weight: 1 },
     })),
-    ...sources.map((source) => ({
-      id: `${source.agent_id}-${source.id}`,
-      source: source.agent_id,
-      target: source.id,
-      animated: true,
-      markerEnd: { type: MarkerType.ArrowClosed },
-      style: { stroke: source.stance === "supports" ? "var(--accent)" : source.stance === "refutes" ? "var(--danger)" : "var(--border-strong)" },
-    })),
+    ...sources
+      .filter((source) => source.agent_id)
+      .map((source) => ({
+        id: `${source.agent_id}-${source.id}`,
+        source: source.agent_id,
+        target: source.id,
+        animated: true,
+        data: { status: source.stance, weight: (source.reliability_score || 50) / 100 },
+      })),
   ];
+}
 
-  return { nodes, edges };
+function layoutAgentRows(count) {
+  const gap = count > 4 ? 78 : count > 3 ? 90 : 112;
+  const offset = ((count - 1) * gap) / 2;
+  return Array.from({ length: count }, (_, index) => index * gap - offset);
+}
+
+function layoutSourceRows(agentOrder, agentY, sourcesByAgent) {
+  const rows = [];
+  let cursor = -Infinity;
+  const sourceGap = 46;
+  const groupGap = 14;
+  const totalSources = Array.from(sourcesByAgent.values()).reduce((sum, items) => sum + items.length, 0);
+  const useColumns = totalSources > 12;
+  const maxRowsPerColumn = useColumns ? Math.ceil(totalSources / 2) : Infinity;
+  let sourceIndex = 0;
+
+  agentOrder.forEach((agentId, agentIndex) => {
+    const group = sourcesByAgent.get(agentId) || [];
+    if (!group.length) return;
+    const centeredStart = (agentY[agentIndex] || 0) - ((group.length - 1) * sourceGap) / 2;
+    let y = Math.max(centeredStart, cursor + groupGap);
+    group.forEach((node) => {
+      const column = Math.floor(sourceIndex / maxRowsPerColumn);
+      const rowIndex = useColumns ? sourceIndex % maxRowsPerColumn : sourceIndex;
+      rows.push({
+        node,
+        y: useColumns ? rowIndex * sourceGap - ((maxRowsPerColumn - 1) * sourceGap) / 2 : y,
+        column,
+      });
+      y += sourceGap;
+      sourceIndex += 1;
+    });
+    cursor = y;
+  });
+
+  return rows;
+}
+
+function edgeStyle(edge) {
+  const status = edge.data?.status;
+  const isSourceEdge = edge.source !== "orchestrator";
+  return {
+    stroke: status === "refutes" ? "var(--danger)" : "var(--accent)",
+    strokeWidth: isSourceEdge ? 1.2 : 1.4,
+    strokeDasharray: "4 6",
+    filter: "drop-shadow(0 0 4px var(--accent-glow))",
+    opacity: status === "unrelated" ? 0.35 : 0.85,
+  };
 }
 
 function agentToData(agent) {
@@ -145,26 +249,42 @@ function sourceToData(source) {
   };
 }
 
+function agentLabel(data = {}, index = 0) {
+  const role = String(data.role || "").toLowerCase();
+  if (role.includes("official")) return "Official";
+  if (role.includes("wire")) return "Newswire";
+  if (role.includes("refutation") || role.includes("contradiction")) return "Contradict";
+  if (role.includes("context")) return "Context";
+  const label = String(data.label || `Agent ${index + 1}`).replace(/\s*Agent\s*$/i, "");
+  return label.length > 12 ? label.slice(0, 12) : label;
+}
+
+function sourceLabel(data = {}, index = 0) {
+  const domain = String(data.domain || data.label || `SRC${index + 1}`)
+    .replace(/^www\./i, "")
+    .toLowerCase();
+  if (data.official_badge) {
+    if (domain.includes("sec")) return "SEC";
+    if (domain.includes("court")) return "COURT";
+    if (domain.includes("eci") || domain.includes("election")) return "ECI";
+    if (domain.includes("gov")) return "GOV";
+    return "OFFICIAL";
+  }
+  if (domain.includes("reuters")) return "REUT";
+  if (domain.includes("apnews")) return "AP";
+  if (domain.includes("bbc")) return "BBC";
+  if (domain.includes("fact")) return "FACT";
+  if (data.stance === "refutes") return "FACT";
+  const clean = domain.split(".")[0].replace(/[^a-z0-9]/g, "");
+  return (clean || `SRC${index + 1}`).slice(0, 6).toUpperCase();
+}
+
 function OrchestratorNode({ data }) {
   return (
-    <div className={`${NODE_BASE_CLASS} rf-orchestrator w-[220px] p-4`}>
+    <div className={`${NODE_BASE_CLASS} rf-orchestrator rf-orchestrator-compact`}>
       <Handle type="source" position={Position.Right} />
-      <div className="nrow">
-        <div className="navatar">O</div>
-        <div>
-          <div className="nname">{data.label || "Orchestrator"}</div>
-          <div className="ntype">ROOT ROUTER</div>
-        </div>
-      </div>
-      <div className="confidence-mini">
-        <div className="ctop">
-          <span className="l">{data.verdict || "Investigating"}</span>
-          <span className="v">{formatPercent(data.confidence)}</span>
-        </div>
-        <div className="cbar">
-          <span style={{ width: `${Math.round(data.confidence || 0)}%` }} />
-        </div>
-      </div>
+      <div className="orch-label">Orchestrator</div>
+      <div className="orch-confidence">CONFIDENCE {formatPercent(data.confidence)}</div>
     </div>
   );
 }
@@ -173,48 +293,23 @@ function AgentNode({ data }) {
   const status = data.status === "complete" ? "complete" : data.status || "running";
 
   return (
-    <div className={`${NODE_BASE_CLASS} rf-agent ${status} w-[220px] p-3`}>
+    <div className={`${NODE_BASE_CLASS} rf-agent rf-agent-compact ${status}`}>
       <Handle type="target" position={Position.Left} />
       <Handle type="source" position={Position.Right} />
-      <div className="nrow">
-        <div className="navatar">{(data.label || "A").slice(0, 1)}</div>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div className="nname">{data.label || "Search Agent"}</div>
-          <div className="ntype">AGENT {String(data.role || "general").toUpperCase()}</div>
-        </div>
-      </div>
-      <div className="nsub">{data.task || data.query || "Searching for evidence"}</div>
-      <div className="nstat">
-        <span className="led" />
-        <span className="lbl">{data.status || "running"} {Math.round(data.progress || 0)}%</span>
-        <span className="mono score-mini">cred {Math.round(data.credibility_score || 0)}</span>
-      </div>
-      <div className="progress">
-        <span style={{ width: `${Math.round(data.progress || 0)}%` }} />
-      </div>
+      <span className="agent-code">{data.code || "A"}</span>
+      <span className="agent-label">{data.shortLabel || data.label || "Agent"}</span>
     </div>
   );
 }
 
 function SourceNode({ data }) {
   return (
-    <div className={`${NODE_BASE_CLASS} rf-source ${data.official_badge ? "official" : "unofficial"} w-[250px] p-2.5`}>
+    <div
+      className={`${NODE_BASE_CLASS} rf-source rf-source-compact ${data.official_badge ? "official" : "unofficial"}`}
+      title={data.domain || data.label || "Source"}
+    >
       <Handle type="target" position={Position.Left} />
-      <div className="nrow">
-        <div className="navatar">{String(data.domain || "src").slice(0, 2).toUpperCase()}</div>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div className="nname source-title">{data.label || "Source"}</div>
-          <div className="ntype">{data.official_badge ? "OFFICIAL" : data.source_type || "SOURCE"}</div>
-        </div>
-      </div>
-      <div className="miniscore">
-        <span>rel</span>
-        <span className={"ms-bar " + (data.official_badge ? "" : "unof")}>
-          <span style={{ width: `${Math.round(data.reliability_score || 0)}%` }} />
-        </span>
-        <span className="mono">{Math.round(data.reliability_score || 0)}</span>
-      </div>
-      {data.stance && <div className={"stance-chip stance-" + data.stance}>{data.stance}</div>}
+      <span>{data.shortLabel || "SRC"}</span>
     </div>
   );
 }
