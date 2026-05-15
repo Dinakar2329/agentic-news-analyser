@@ -18,6 +18,7 @@ class SourceScore:
     citation_score: float = 0
     primary_source_score: float = 0
     recency_score: float = 50
+    stance: str = "needs_context"
 
 
 class ScoringEngine:
@@ -61,34 +62,66 @@ class ScoringEngine:
         relevant_scores = [score for score in source_scores if score.relevance_score >= 35]
         if not relevant_scores:
             return {"verdict": "UNVERIFIED", "confidence": 18, "truth_probability": 30}
-        stance_counts = stance_counts or {}
+        stance_counts = stance_counts or self._stance_counts_from_scores(relevant_scores)
         support_count = stance_counts.get("supports", 0)
         refute_count = stance_counts.get("refutes", 0)
         context_count = stance_counts.get("needs_context", 0)
         avg_reliability = sum(score.reliability_score for score in relevant_scores) / len(relevant_scores)
         avg_relevance = sum(score.relevance_score for score in relevant_scores) / len(relevant_scores)
         official_count = sum(1 for score in relevant_scores if score.official_badge)
-        penalty = min(contradiction_count * 12, 36)
-        corroboration_bonus = min(max(len(relevant_scores) - 1, 0) * 4, 12)
-        relevance_gate = max(0.55, avg_relevance / 100)
-        confidence = max(12, min(94, (avg_reliability * relevance_gate) + official_count * 4 + corroboration_bonus - penalty))
-        if refute_count >= 2 and refute_count >= support_count and avg_reliability >= 62:
+
+        support_scores = [score for score in relevant_scores if score.stance == "supports"]
+        refute_scores = [score for score in relevant_scores if score.stance == "refutes"]
+        if support_count and not support_scores:
+            support_scores = relevant_scores
+        if refute_count and not refute_scores:
+            refute_scores = relevant_scores
+
+        support_weight = self._stance_weight(support_scores)
+        refute_weight = self._stance_weight(refute_scores)
+        official_bonus = min(official_count * 5, 12)
+        corroboration_bonus = min(max(len(relevant_scores) - 1, 0) * 3, 12)
+        stance_bonus = min(support_count * 5 + context_count * 1.5, 14)
+        penalty = min(refute_count * 7 + contradiction_count * 8, 34)
+        confidence = max(
+            12,
+            min(
+                94,
+                avg_reliability * 0.62
+                + avg_relevance * 0.28
+                + official_bonus
+                + corroboration_bonus
+                + stance_bonus
+                - penalty,
+            ),
+        )
+
+        if (
+            refute_count >= 1
+            and support_count == 0
+            and refute_weight >= 48
+            and (official_count or avg_reliability >= 68)
+            and avg_relevance >= 45
+        ):
             verdict = "FALSE"
-            truth_probability = max(5, min(35, 42 - refute_count * 8 + support_count * 5))
+            truth_probability = max(5, min(35, 34 - refute_count * 6))
+        elif refute_count >= 2 and refute_count >= support_count and refute_weight >= max(55, support_weight * 0.9):
+            verdict = "FALSE"
+            truth_probability = max(5, min(35, 36 - refute_count * 7 + support_count * 4))
         elif refute_count and support_count:
             verdict = "PARTIALLY TRUE" if support_count >= refute_count else "MISLEADING"
-            truth_probability = max(20, min(70, confidence - refute_count * 9 + support_count * 5))
-        elif confidence >= 90 and support_count >= 3 and contradiction_count == 0:
+            truth_probability = max(20, min(70, confidence - refute_count * 8 + support_count * 5))
+        elif support_count >= 3 and confidence >= 82 and contradiction_count == 0:
             verdict = "TRUE"
             truth_probability = min(98, confidence + 3)
-        elif confidence >= 78 and support_count >= 2 and contradiction_count == 0:
+        elif support_count >= 2 and confidence >= 68 and contradiction_count == 0:
             verdict = "MOSTLY TRUE"
             truth_probability = min(95, confidence)
-        elif confidence >= 58 and (support_count or context_count):
-            verdict = "PARTIALLY TRUE" if support_count else "MISLEADING"
+        elif support_count >= 1 and confidence >= 55 and contradiction_count == 0:
+            verdict = "MOSTLY TRUE" if confidence >= 75 and avg_relevance >= 65 else "PARTIALLY TRUE"
             truth_probability = max(30, min(78, confidence - contradiction_count * 5))
-        elif confidence >= 48:
-            verdict = "MISLEADING" if contradiction_count else "UNVERIFIED"
+        elif refute_count and confidence >= 48:
+            verdict = "MISLEADING"
             truth_probability = max(20, min(62, confidence - contradiction_count * 5))
         else:
             verdict = "UNVERIFIED"
@@ -98,3 +131,18 @@ class ScoringEngine:
             "confidence": round(confidence, 1),
             "truth_probability": round(truth_probability, 1),
         }
+
+    def _stance_counts_from_scores(self, source_scores: list[SourceScore]) -> dict[str, int]:
+        counts: dict[str, int] = {}
+        for score in source_scores:
+            counts[score.stance] = counts.get(score.stance, 0) + 1
+        return counts
+
+    def _stance_weight(self, source_scores: list[SourceScore]) -> float:
+        if not source_scores:
+            return 0
+        weighted = [
+            score.reliability_score * max(score.relevance_score, 35) / 100
+            for score in source_scores
+        ]
+        return sum(weighted) / len(weighted)

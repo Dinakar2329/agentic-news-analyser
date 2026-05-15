@@ -258,6 +258,10 @@ function VerdictPane({ investigation, sources }) {
     investigation.verdict?.trim() || summary.verdict?.trim() || "UNVERIFIED";
   const key = verdictKey(verdictText);
   const meta = VERDICT_META[key] || VERDICT_META.UNVERIFIED;
+  const verdictBody =
+    summary.ai_summary ||
+    summary.key_evidence?.[0] ||
+    "The backend has not emitted a final verdict yet.";
 
   return (
     <div
@@ -270,11 +274,7 @@ function VerdictPane({ investigation, sources }) {
       <div className="verdict-card">
         <div className="v-label">VERDICT - CONFIDENCE-WEIGHTED SYNTHESIS</div>
         <div className="v-verdict">{verdictText}</div>
-        <div className="v-claim">
-          {summary.ai_summary ||
-            summary.key_evidence?.[0] ||
-            "The backend has not emitted a final verdict yet."}
-        </div>
+        <MarkdownBlock className="v-claim" text={verdictBody} />
         <Meter label="Confidence" value={investigation.confidence} />
         <Meter
           label="Truth probability"
@@ -340,6 +340,148 @@ function VerdictPane({ investigation, sources }) {
       </div>
     </div>
   );
+}
+
+function MarkdownBlock({ text, className = "" }) {
+  const source = String(text || "").trim();
+  if (!source) return null;
+
+  const elements = [];
+  const lines = source.split(/\r?\n/);
+  let paragraph = [];
+  let unordered = [];
+  let ordered = [];
+  let code = [];
+  let inCode = false;
+
+  const flushParagraph = () => {
+    if (!paragraph.length) return;
+    const value = paragraph.join(" ");
+    elements.push(<p key={`p-${elements.length}`}>{renderInline(value)}</p>);
+    paragraph = [];
+  };
+  const flushLists = () => {
+    if (unordered.length) {
+      elements.push(
+        <ul key={`ul-${elements.length}`}>
+          {unordered.map((item, index) => (
+            <li key={index}>{renderInline(item)}</li>
+          ))}
+        </ul>,
+      );
+      unordered = [];
+    }
+    if (ordered.length) {
+      elements.push(
+        <ol key={`ol-${elements.length}`}>
+          {ordered.map((item, index) => (
+            <li key={index}>{renderInline(item)}</li>
+          ))}
+        </ol>,
+      );
+      ordered = [];
+    }
+  };
+
+  for (const rawLine of lines) {
+    const line = rawLine.trimEnd();
+    const trimmed = line.trim();
+    if (trimmed.startsWith("```")) {
+      if (inCode) {
+        elements.push(
+          <pre key={`code-${elements.length}`}>
+            <code>{code.join("\n")}</code>
+          </pre>,
+        );
+        code = [];
+        inCode = false;
+      } else {
+        flushParagraph();
+        flushLists();
+        inCode = true;
+      }
+      continue;
+    }
+    if (inCode) {
+      code.push(rawLine);
+      continue;
+    }
+    if (!trimmed) {
+      flushParagraph();
+      flushLists();
+      continue;
+    }
+    const heading = /^(#{1,4})\s+(.+)$/.exec(trimmed);
+    if (heading) {
+      flushParagraph();
+      flushLists();
+      const Tag = `h${Math.min(heading[1].length + 2, 4)}`;
+      elements.push(<Tag key={`h-${elements.length}`}>{renderInline(heading[2])}</Tag>);
+      continue;
+    }
+    const bullet = /^[-*]\s+(.+)$/.exec(trimmed);
+    if (bullet) {
+      flushParagraph();
+      if (ordered.length) flushLists();
+      unordered.push(bullet[1]);
+      continue;
+    }
+    const number = /^\d+[.)]\s+(.+)$/.exec(trimmed);
+    if (number) {
+      flushParagraph();
+      if (unordered.length) flushLists();
+      ordered.push(number[1]);
+      continue;
+    }
+    const quote = /^>\s+(.+)$/.exec(trimmed);
+    if (quote) {
+      flushParagraph();
+      flushLists();
+      elements.push(<blockquote key={`q-${elements.length}`}>{renderInline(quote[1])}</blockquote>);
+      continue;
+    }
+    paragraph.push(trimmed);
+  }
+  flushParagraph();
+  flushLists();
+  if (code.length) {
+    elements.push(
+      <pre key={`code-${elements.length}`}>
+        <code>{code.join("\n")}</code>
+      </pre>,
+    );
+  }
+
+  return <div className={`md-render ${className}`.trim()}>{elements}</div>;
+}
+
+function renderInline(text) {
+  const parts = [];
+  const pattern = /(\*\*[^*]+\*\*|`[^`]+`|\[[^\]]+\]\(https?:\/\/[^)\s]+\))/g;
+  let lastIndex = 0;
+  for (const match of text.matchAll(pattern)) {
+    if (match.index > lastIndex) {
+      parts.push(text.slice(lastIndex, match.index));
+    }
+    const token = match[0];
+    if (token.startsWith("**")) {
+      parts.push(<strong key={`b-${parts.length}`}>{token.slice(2, -2)}</strong>);
+    } else if (token.startsWith("`")) {
+      parts.push(<code key={`c-${parts.length}`}>{token.slice(1, -1)}</code>);
+    } else {
+      const link = /^\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)$/.exec(token);
+      parts.push(
+        <a key={`a-${parts.length}`} href={link[2]} target="_blank" rel="noreferrer">
+          {link[1]}
+        </a>,
+      );
+    }
+    lastIndex = match.index + token.length;
+  }
+  if (lastIndex < text.length) {
+    parts.push(text.slice(lastIndex));
+  }
+  return parts;
 }
 
 function Meter({ label, value }) {

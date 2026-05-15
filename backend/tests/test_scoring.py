@@ -35,6 +35,28 @@ def test_multiple_reliable_supporting_sources_can_be_true():
     assert verdict["verdict"] == "TRUE"
 
 
+def test_trusted_supporting_sources_are_not_left_unverified():
+    engine = ScoringEngine()
+    scores = [
+        engine.score_source("reuters.com", "Reuters report", "according to court documents " + "x" * 900),
+        engine.score_source("apnews.com", "AP report", "company statement and filing " + "x" * 900),
+    ]
+    for score in scores:
+        score.relevance_score = 62
+        score.stance = "supports"
+    verdict = engine.aggregate_verdict(scores, 0)
+    assert verdict["verdict"] in {"PARTIALLY TRUE", "MOSTLY TRUE", "TRUE"}
+
+
+def test_single_official_source_can_support_a_claim():
+    engine = ScoringEngine()
+    score = engine.score_source("sec.gov", "SEC filing", "official filing statement " + "x" * 1200)
+    score.relevance_score = 78
+    score.stance = "supports"
+    verdict = engine.aggregate_verdict([score], 0)
+    assert verdict["verdict"] in {"PARTIALLY TRUE", "MOSTLY TRUE"}
+
+
 def test_reliable_refuting_sources_can_be_false():
     engine = ScoringEngine()
     scores = [
@@ -44,4 +66,17 @@ def test_reliable_refuting_sources_can_be_false():
     for score in scores:
         score.relevance_score = 90
     verdict = engine.aggregate_verdict(scores, 2, {"refutes": 2})
+    assert verdict["verdict"] == "FALSE"
+
+
+def test_single_official_refutation_can_be_false():
+    engine = ScoringEngine()
+    score = engine.score_source(
+        "presidentofindia.gov.in",
+        "President of India",
+        "The current President of India is Smt. Droupadi Murmu. " + "x" * 1200,
+    )
+    score.relevance_score = 72
+    score.stance = "refutes"
+    verdict = engine.aggregate_verdict([score], 1)
     assert verdict["verdict"] == "FALSE"

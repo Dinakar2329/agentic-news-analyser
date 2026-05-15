@@ -8,6 +8,9 @@ const nodeTypes = {
   source: SourceNode,
 };
 
+const NODE_BASE_CLASS =
+  "rf-node rounded-[var(--r-md)] border border-[var(--border)] text-[var(--text)] shadow-[var(--shadow-2)] backdrop-blur-xl";
+
 export function FlowCanvas({ graph, agents, sources, confidence, verdict }) {
   const { nodes, edges } = useMemo(
     () => normalizeGraph(graph, agents, sources, confidence, verdict),
@@ -15,7 +18,7 @@ export function FlowCanvas({ graph, agents, sources, confidence, verdict }) {
   );
 
   return (
-    <div className="react-flow-shell">
+    <div className="react-flow-shell bg-[var(--canvas-bg-from)] dark:bg-[var(--bg-deep)]">
       <ReactFlow
         nodes={nodes}
         edges={edges}
@@ -26,7 +29,7 @@ export function FlowCanvas({ graph, agents, sources, confidence, verdict }) {
         maxZoom={1.6}
         proOptions={{ hideAttribution: true }}
       >
-        <Background color="rgba(255,255,255,0.08)" gap={28} size={1} />
+        <Background color="var(--canvas-grid-line)" gap={28} size={1} />
         <Controls position="top-right" />
         <MiniMap
           position="bottom-right"
@@ -63,7 +66,7 @@ function normalizeGraph(graph, agentsById, sourcesById, confidence, verdict) {
         animated: edge.animated !== false,
         markerEnd: { type: MarkerType.ArrowClosed, width: 14, height: 14 },
         style: {
-          stroke: edge.data?.status === "refutes" ? "var(--danger)" : edge.data?.status === "supports" ? "var(--accent)" : "rgba(255,255,255,0.22)",
+          stroke: edge.data?.status === "refutes" ? "var(--danger)" : edge.data?.status === "supports" ? "var(--accent)" : "var(--border-strong)",
           strokeWidth: Math.max(1, (edge.data?.weight || 0.5) * 3),
         },
       })),
@@ -100,7 +103,7 @@ function normalizeGraph(graph, agentsById, sourcesById, confidence, verdict) {
       target: agent.id,
       animated: true,
       markerEnd: { type: MarkerType.ArrowClosed },
-      style: { stroke: "rgba(255,255,255,0.2)" },
+      style: { stroke: "var(--border-strong)" },
     })),
     ...sources.map((source) => ({
       id: `${source.agent_id}-${source.id}`,
@@ -108,7 +111,7 @@ function normalizeGraph(graph, agentsById, sourcesById, confidence, verdict) {
       target: source.id,
       animated: true,
       markerEnd: { type: MarkerType.ArrowClosed },
-      style: { stroke: source.stance === "supports" ? "var(--accent)" : source.stance === "refutes" ? "var(--danger)" : "rgba(255,255,255,0.18)" },
+      style: { stroke: source.stance === "supports" ? "var(--accent)" : source.stance === "refutes" ? "var(--danger)" : "var(--border-strong)" },
     })),
   ];
 
@@ -144,7 +147,7 @@ function sourceToData(source) {
 
 function OrchestratorNode({ data }) {
   return (
-    <div className="rf-node rf-orchestrator">
+    <div className={`${NODE_BASE_CLASS} rf-orchestrator w-[220px] p-4`}>
       <Handle type="source" position={Position.Right} />
       <div className="nrow">
         <div className="navatar">O</div>
@@ -167,8 +170,10 @@ function OrchestratorNode({ data }) {
 }
 
 function AgentNode({ data }) {
+  const status = data.status === "complete" ? "complete" : data.status || "running";
+
   return (
-    <div className={"rf-node rf-agent " + (data.status || "running")}>
+    <div className={`${NODE_BASE_CLASS} rf-agent ${status} w-[220px] p-3`}>
       <Handle type="target" position={Position.Left} />
       <Handle type="source" position={Position.Right} />
       <div className="nrow">
@@ -193,7 +198,7 @@ function AgentNode({ data }) {
 
 function SourceNode({ data }) {
   return (
-    <div className={"rf-node rf-source " + (data.official_badge ? "official" : "unofficial")}>
+    <div className={`${NODE_BASE_CLASS} rf-source ${data.official_badge ? "official" : "unofficial"} w-[250px] p-2.5`}>
       <Handle type="target" position={Position.Left} />
       <div className="nrow">
         <div className="navatar">{String(data.domain || "src").slice(0, 2).toUpperCase()}</div>

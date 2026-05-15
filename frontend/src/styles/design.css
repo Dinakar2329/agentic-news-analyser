@@ -27,7 +27,7 @@
   --grid-line: oklch(0.72 0.01 240 / 0.35);
   --code-bg: oklch(0.93 0.02 260 / 0.6);
   --arch-preview-bg: oklch(0.94 0.02 260);
-  --arch-chrome-bg: oklch(0.86 0.18 142);
+  --arch-chrome-bg: var(--accent);
   --arch-dot: oklch(0.82 0.01 260);
   --canvas-bg-from: oklch(0.94 0.02 260);
   --canvas-toolbar-bg: oklch(0.93 0.02 260 / 0.85);
@@ -47,9 +47,9 @@
 
   /* Accents - single primary; semantic warm/danger/info */
   --accent: oklch(0.86 0.18 142);
-  --accent-dim: oklch(0.86 0.18 142 / 0.18);
-  --accent-soft: oklch(0.86 0.18 142 / 0.1);
-  --accent-glow: oklch(0.86 0.18 142 / 0.45);
+  --accent-dim: oklch(0.86 0.18 142 / 0.22);
+  --accent-soft: oklch(0.86 0.18 142 / 0.12);
+  --accent-glow: oklch(0.86 0.18 142 / 0.32);
 
   --warn: oklch(0.8 0.16 75);
   --danger: oklch(0.7 0.2 25);
@@ -105,7 +105,7 @@
   --grid-line: oklch(0.22 0.015 250 / 0.35);
   --code-bg: oklch(0.16 0.01 250 / 0.6);
   --arch-preview-bg: oklch(0.14 0.009 250);
-  --arch-chrome-bg: oklch(0.86 0.18 142);
+  --arch-chrome-bg: var(--accent);
   --arch-dot: oklch(0.22 0.015 250);
   --canvas-bg-from: oklch(0.18 0.012 250);
   --canvas-toolbar-bg: oklch(0.14 0.009 250 / 0.7);
@@ -115,7 +115,7 @@
   --agent-av-bg: oklch(0.22 0.015 250);
   --user-av-bg: oklch(0.3 0.025 250);
   --reason-card-bg: oklch(0.15 0.009 250 / 0.6);
-  --btn-primary-text: oklch(0.96 0.005 250);
+  --btn-primary-text: oklch(0.13 0.02 250);
 
   --text: oklch(0.96 0.005 250);
   --text-2: oklch(0.78 0.008 250);
@@ -126,15 +126,15 @@
 /* Accent themes (driven by Tweaks) */
 [data-accent="lime"] {
   --accent: oklch(0.86 0.18 142);
-  --accent-glow: oklch(0.86 0.18 142 / 0.45);
-  --accent-dim: oklch(0.86 0.18 142 / 0.18);
-  --accent-soft: oklch(0.86 0.18 142 / 0.1);
+  --accent-glow: oklch(0.86 0.18 142 / 0.32);
+  --accent-dim: oklch(0.86 0.18 142 / 0.22);
+  --accent-soft: oklch(0.86 0.18 142 / 0.12);
 }
 [data-accent="cyan"] {
   --accent: oklch(0.82 0.13 200);
-  --accent-glow: oklch(0.82 0.13 200 / 0.45);
-  --accent-dim: oklch(0.82 0.13 200 / 0.18);
-  --accent-soft: oklch(0.82 0.13 200 / 0.1);
+  --accent-glow: oklch(0.82 0.13 200 / 0.32);
+  --accent-dim: oklch(0.82 0.13 200 / 0.22);
+  --accent-soft: oklch(0.82 0.13 200 / 0.12);
 }
 [data-accent="violet"] {
   --accent: oklch(0.78 0.16 295);
@@ -373,16 +373,30 @@ a {
 }
 
 .btn-primary {
-  background: var(--accent);
+  background: linear-gradient(
+    180deg,
+    color-mix(in oklch, var(--accent) 92%, white 8%),
+    color-mix(in oklch, var(--accent) 84%, black 16%)
+  );
   color: var(--btn-primary-text);
-  border-color: oklch(0.86 0.18 142 / 0.6);
-  box-shadow: 0 0 0 1px oklch(1 0 0 / 0.08) inset;
+  border-color: color-mix(in oklch, var(--accent) 72%, black 28%);
+  box-shadow:
+    0 1px 0 oklch(1 0 0 / 0.2) inset,
+    0 0 0 1px color-mix(in oklch, var(--accent) 45%, transparent);
   font-weight: 600;
 }
 .btn-primary:hover {
-  background: var(--accent);
-  filter: brightness(1.06);
-  box-shadow: 0 0 0 1px oklch(1 0 0 / 0.1) inset;
+  background: linear-gradient(
+    180deg,
+    color-mix(in oklch, var(--accent) 96%, white 4%),
+    color-mix(in oklch, var(--accent) 88%, black 12%)
+  );
+  box-shadow:
+    0 1px 0 oklch(1 0 0 / 0.24) inset,
+    0 0 0 1px color-mix(in oklch, var(--accent) 55%, transparent);
+}
+.btn-primary svg {
+  color: currentColor;
 }
 .btn-ghost {
   background: transparent;
@@ -1075,12 +1089,12 @@ footer.foot {
   height: 32px;
   border-radius: 8px;
   background: var(--accent);
-  color: oklch(0.16 0.01 250);
+  color: var(--btn-primary-text);
   display: grid;
   place-items: center;
   box-shadow:
     0 0 0 1px oklch(1 0 0 / 0.1) inset,
-    0 0 16px var(--accent-glow);
+    0 0 10px var(--accent-glow);
   transition: filter 140ms ease;
 }
 .send-btn:hover {
@@ -1421,6 +1435,72 @@ footer.foot {
   margin-top: 12px;
   line-height: 1.45;
 }
+.md-render {
+  white-space: normal;
+}
+.md-render > *:first-child {
+  margin-top: 0;
+}
+.md-render > *:last-child {
+  margin-bottom: 0;
+}
+.md-render p,
+.md-render ul,
+.md-render ol,
+.md-render blockquote,
+.md-render pre {
+  margin: 8px 0;
+}
+.md-render h3,
+.md-render h4 {
+  margin: 12px 0 6px;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 650;
+  letter-spacing: 0;
+}
+.md-render ul,
+.md-render ol {
+  padding-left: 18px;
+}
+.md-render li {
+  margin: 4px 0;
+}
+.md-render strong {
+  color: var(--text);
+  font-weight: 650;
+}
+.md-render code {
+  font-family: var(--font-mono);
+  font-size: 0.92em;
+  color: var(--accent);
+  background: var(--code-bg);
+  border: 1px solid var(--border-soft);
+  border-radius: 4px;
+  padding: 1px 4px;
+}
+.md-render pre {
+  overflow-x: auto;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--border-soft);
+  background: var(--code-bg);
+  padding: 10px;
+}
+.md-render pre code {
+  padding: 0;
+  border: none;
+  background: transparent;
+}
+.md-render blockquote {
+  border-left: 2px solid var(--accent);
+  padding-left: 10px;
+  color: var(--text-3);
+}
+.md-render a {
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
 
 .meter {
   display: flex;
@@ -1565,11 +1645,13 @@ footer.foot {
 .canvas-wrap {
   position: relative;
   min-height: 0;
-  background: radial-gradient(
-    ellipse 60% 40% at 50% 50%,
-    oklch(0.18 0.012 250),
-    var(--bg-deep) 70%
-  );
+  background:
+    radial-gradient(
+      ellipse 60% 42% at 50% 48%,
+      var(--accent-soft),
+      transparent 68%
+    ),
+    linear-gradient(180deg, var(--canvas-bg-from), var(--bg-deep));
   overflow: hidden;
 }
 .canvas-toolbar {
@@ -1663,12 +1745,12 @@ footer.foot {
   background-image:
     linear-gradient(
       to right,
-      oklch(0.22 0.015 250 / 0.18) 1px,
+      var(--canvas-grid-line) 1px,
       transparent 1px
     ),
     linear-gradient(
       to bottom,
-      oklch(0.22 0.015 250 / 0.18) 1px,
+      var(--canvas-grid-line) 1px,
       transparent 1px
     );
   background-size: 40px 40px;
@@ -1753,7 +1835,7 @@ footer.foot {
       var(--accent-soft),
       transparent 60%
     ),
-    linear-gradient(180deg, var(--surface-2), oklch(0.14 0.009 250));
+    linear-gradient(180deg, var(--surface-2), var(--canvas-node-bg));
   border-color: oklch(0.34 0.018 250);
   box-shadow:
     0 0 0 1px var(--accent-dim),
@@ -1787,7 +1869,7 @@ footer.foot {
 }
 .node.orchestrator .navatar {
   background: var(--accent);
-  color: oklch(0.16 0.01 250);
+  color: var(--btn-primary-text);
   box-shadow: 0 0 16px var(--accent-glow);
 }
 .node.orchestrator .nname {
@@ -2465,11 +2547,9 @@ footer.foot {
 .react-flow-shell {
   position: absolute;
   inset: 0;
-  background: radial-gradient(
-    circle at 50% 35%,
-    oklch(0.2 0.014 250 / 0.38),
-    transparent 42%
-  );
+  background:
+    radial-gradient(circle at 50% 35%, var(--accent-soft), transparent 44%),
+    linear-gradient(180deg, var(--canvas-bg-from), var(--bg-deep));
 }
 
 .react-flow__pane {
@@ -2478,11 +2558,12 @@ footer.foot {
 
 .react-flow__controls,
 .react-flow__minimap {
-  background: oklch(0.14 0.009 250 / 0.82);
+  background: var(--canvas-toolbar-bg);
   border: 1px solid var(--border);
   border-radius: var(--r-md);
   overflow: hidden;
   box-shadow: var(--shadow-2);
+  backdrop-filter: blur(10px);
 }
 
 .react-flow__controls button {
@@ -2497,35 +2578,193 @@ footer.foot {
 }
 
 .rf-node {
-  width: 220px;
-  border-radius: var(--r-md);
-  border: 1px solid var(--border);
-  background: oklch(0.16 0.01 250 / 0.88);
-  backdrop-filter: blur(12px);
-  box-shadow: var(--shadow-2);
-  padding: 12px;
+  position: relative;
+  isolation: isolate;
+  background: linear-gradient(180deg, var(--surface), var(--canvas-node-bg));
   color: var(--text);
+  font-size: 12px;
+}
+
+.rf-node .nrow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.rf-node .nname {
+  color: var(--text);
+  font-weight: 600;
+  font-size: 12.5px;
+  letter-spacing: 0;
+}
+.rf-node .ntype {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  color: var(--text-4);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.rf-node .nsub {
+  color: var(--text-3);
+  font-size: 11px;
+  margin-top: 4px;
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.rf-node .nstat {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+}
+.rf-node .nstat .led {
+  width: 6px;
+  height: 6px;
+  border-radius: 99px;
+  background: var(--text-4);
+}
+.rf-node .nstat .lbl {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-3);
+}
+.rf-node .navatar {
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  background: var(--surface-3);
+  display: grid;
+  place-items: center;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text);
+  flex-shrink: 0;
 }
 
 .rf-orchestrator {
+  background:
+    radial-gradient(
+      ellipse 100% 200% at 50% 0%,
+      var(--accent-soft),
+      transparent 60%
+    ),
+    linear-gradient(180deg, var(--surface-2), var(--canvas-node-bg));
   border-color: var(--accent-dim);
   box-shadow:
     0 0 0 1px var(--accent-dim),
     0 0 26px var(--accent-glow),
     var(--shadow-2);
 }
+.rf-orchestrator::before,
+.rf-orchestrator::after {
+  content: "";
+  position: absolute;
+  inset: -8px;
+  border-radius: calc(var(--r-md) + 8px);
+  border: 1px solid var(--accent-dim);
+  pointer-events: none;
+  animation: ring 2.4s ease-out infinite;
+  opacity: 0;
+}
+.rf-orchestrator::after {
+  animation-delay: 1.2s;
+}
+.rf-orchestrator .navatar {
+  background: var(--accent);
+  color: var(--btn-primary-text);
+  box-shadow: 0 0 14px var(--accent-glow);
+}
+.rf-orchestrator .nname {
+  font-size: 13.5px;
+}
 
 .rf-agent.running,
 .rf-agent.retrying {
   border-color: var(--accent-dim);
 }
+.rf-agent.running .nstat .led,
+.rf-agent.retrying .nstat .led {
+  background: var(--accent);
+  box-shadow: 0 0 8px var(--accent-glow);
+  animation: pulse 1.6s ease-in-out infinite;
+}
+.rf-agent.running .nstat .lbl,
+.rf-agent.retrying .nstat .lbl {
+  color: var(--accent);
+}
+.rf-agent.complete .nstat .led {
+  background: var(--accent);
+}
+.rf-agent.complete .nstat .lbl {
+  color: var(--text-2);
+}
+.rf-agent .progress {
+  height: 2px;
+  background: var(--surface-3);
+  border-radius: 99px;
+  overflow: hidden;
+  margin-top: 6px;
+}
+.rf-agent .progress > span {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  box-shadow: 0 0 6px var(--accent-glow);
+  transition: width 800ms ease;
+}
 
 .rf-source {
-  width: 250px;
+  font-size: 11.5px;
 }
 
 .rf-source.official {
   border-color: var(--accent-dim);
+  box-shadow:
+    0 0 0 1px var(--accent-dim) inset,
+    var(--shadow-1);
+}
+.rf-source.unofficial .navatar {
+  color: var(--warn);
+}
+.rf-source .navatar {
+  width: 22px;
+  height: 22px;
+  font-size: 10px;
+  border-radius: 5px;
+}
+.rf-source .nname {
+  font-size: 11.5px;
+  font-weight: 500;
+}
+.rf-source .ntype {
+  font-size: 9px;
+}
+.rf-source .miniscore {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-3);
+}
+.rf-source .miniscore .ms-bar {
+  flex: 1;
+  height: 2px;
+  background: var(--surface-3);
+  border-radius: 99px;
+  overflow: hidden;
+}
+.rf-source .miniscore .ms-bar > span {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+}
+.rf-source .miniscore .ms-bar.unof > span {
+  background: var(--warn);
 }
 
 .source-title {
@@ -2752,7 +2991,7 @@ footer.foot {
   transform: translateX(-50%);
   padding: 8px 14px;
   border-radius: 99px;
-  background: oklch(0.16 0.01 250 / 0.85);
+  background: var(--canvas-toolbar-bg);
   border: 1px solid var(--border);
   font-family: var(--font-mono);
   font-size: 11px;

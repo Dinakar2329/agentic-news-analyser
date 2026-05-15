@@ -163,7 +163,7 @@ function TopNav({
           <Icon.Logo />
         </div>
         <span className="brand-name">
-          Angetic<span className="dot">.</span>
+          Agentic<span className="dot">.</span>
         </span>
       </button>
       <div className="crumbs">

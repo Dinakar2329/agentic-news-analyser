@@ -1,5 +1,6 @@
 import asyncio
 import json
+import re
 
 from sqlalchemy import select
 
@@ -77,6 +78,7 @@ class OrchestratorService:
             stance_counts = self._stance_counts(all_findings)
             contradiction_count = stance_counts.get("refutes", 0)
             verdict = self.scoring.aggregate_verdict(all_scores, contradiction_count, stance_counts)
+            ranked_findings = self._rank_findings(all_findings)
             investigation.status = "complete"
             investigation.verdict = verdict["verdict"]
             investigation.confidence = verdict["confidence"]
@@ -85,7 +87,7 @@ class OrchestratorService:
 
             summary = {
                 **verdict,
-                "key_evidence": [item["summary"] for item in all_findings[:5]],
+                "key_evidence": [item["summary"] for item in ranked_findings[:5]],
                 "contradictions_found": contradiction_count,
                 "stance_counts": stance_counts,
                 "most_reliable_sources": [
@@ -105,7 +107,7 @@ class OrchestratorService:
             if provider:
                 try:
                     summary["ai_summary"] = await provider.generate(
-                        self._summary_prompt(investigation.claim, summary, all_findings),
+                        self._summary_prompt(investigation.claim, summary, ranked_findings),
                         investigation.selected_model,
                     )
                     summary["model_used"] = {
@@ -300,37 +302,52 @@ class OrchestratorService:
         return provider_for_name(investigation.selected_provider, api_key=api_key)
 
     def _agent_roles(self, claim: str, agent_count: int) -> list[dict]:
+        office_context = self._office_claim_query(claim)
         templates = [
             {
                 "kind": "official",
                 "name": "Official Records Agent",
                 "task": "Find primary documents, government records, filings, court documents, or official statements.",
-                "query": f"{claim} official source filing statement government court document",
+                "query": f"{claim} {office_context} official source current holder government document",
                 "stance_bias": "support",
             },
             {
                 "kind": "wire",
                 "name": "Trusted News Agent",
                 "task": "Find trusted reporting from wire services and high-reputation newsrooms.",
-                "query": f"{claim} Reuters AP BBC report verified",
+                "query": f"{claim} {office_context} Reuters AP BBC report verified",
                 "stance_bias": "support",
             },
             {
                 "kind": "refutation",
                 "name": "Contradiction Agent",
                 "task": "Look for denials, corrections, fact checks, or evidence that refutes the claim.",
-                "query": f"{claim} false denied fake hoax fact check debunked no evidence",
+                "query": f"{claim} {office_context} false denied fake hoax fact check debunked no evidence",
                 "stance_bias": "refute",
             },
             {
                 "kind": "context",
                 "name": "Context Agent",
                 "task": "Find background, timeline, source spread, and context that changes interpretation.",
-                "query": f"{claim} timeline background context source origin",
+                "query": f"{claim} {office_context} timeline background context source origin",
                 "stance_bias": "context",
             },
         ]
         return templates[:agent_count]
+
+    def _office_claim_query(self, claim: str) -> str:
+        match = re.search(
+            r"^\s*(?P<person>.+?)\s+"
+            r"(?:is|was|became|becomes|will be|serves as|served as)\s+"
+            r"(?:the\s+)?(?P<office>president|prime minister|king|queen|governor|chief minister|mayor)\s+"
+            r"of\s+(?P<place>.+?)(?:\s+in\s+(?P<year>\d{4}))?\s*[.?!]?\s*$",
+            claim,
+            re.IGNORECASE,
+        )
+        if not match:
+            return ""
+        year = match.group("year") or ""
+        return f"{match.group('office')} of {match.group('place')} {year} current office holder"
 
     def _effective_search_depth(self, requested_depth: int, speed_accuracy: int) -> int:
         if speed_accuracy >= 75:
@@ -387,6 +404,17 @@ class OrchestratorService:
             "unique_domains": len(domains),
         }
 
+    def _rank_findings(self, findings: list[dict]) -> list[dict]:
+        stance_priority = {"supports": 0, "refutes": 1, "needs_context": 2, "unrelated": 3}
+        return sorted(
+            findings,
+            key=lambda item: (
+                stance_priority.get(item.get("stance"), 4),
+                -item["source"].reliability_score,
+                -getattr(item.get("score"), "relevance_score", 0),
+            ),
+        )
+
     def _summary_prompt(self, claim: str, summary: dict, findings: list[dict]) -> str:
         evidence_rows = []
         for item in findings[:8]:
@@ -405,7 +433,9 @@ class OrchestratorService:
             )
         return (
             "Fact-check this claim using only the supplied evidence. "
-            "Return a short final assessment with verdict rationale, strongest evidence, limitations, and what would change the conclusion.\n\n"
+            "Return a short final assessment with verdict rationale, strongest evidence, limitations, and what would change the conclusion. "
+            "The evidence rows were already gathered by the application; do not say you lack tools, browsing access, or evidence when these rows support or refute the claim. "
+            "Use the computed verdict unless the listed evidence plainly contradicts it.\n\n"
             f"Claim: {claim}\n"
             f"Computed verdict: {summary['verdict']}\n"
             f"Computed confidence: {summary['confidence']}\n"

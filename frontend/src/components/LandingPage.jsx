@@ -23,7 +23,7 @@ export function LandingPage({ onCTA, onOpenBYOK }) {
             Verify viral news, <em>before</em> it goes viral.
           </h1>
           <p className="sub">
-            Angetic News Analyser dispatches specialist agents to cross-check
+            Agentic News Analyser dispatches specialist agents to cross-check
             claims against primary sources, news reports, and contradiction
             searches in real time.
           </p>
@@ -99,7 +99,7 @@ function ArchPreview() {
           <span />
         </span>
         <span style={{ marginLeft: 8 }}>
-          Angetic News Analyser live investigation graph
+          Agentic News Analyser live investigation graph
         </span>
         <span style={{ marginLeft: "auto" }}>READY</span>
       </div>
