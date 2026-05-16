@@ -507,61 +507,6 @@ function Indicator({ label, value, tone = "" }) {
   );
 }
 
-function CanvasToolbar({ investigation }) {
-  return (
-    <div className="canvas-toolbar">
-      <span className="pill">
-        <span className="led" />
-        {investigation.wsStatus.toUpperCase()}
-      </span>
-      <span className="pill">
-        <span className="led idle" />
-        SESS {shortId(investigation.id)}
-      </span>
-      <span className="pill">
-        {investigation.verdict?.trim() ||
-          investigation.summary?.verdict?.trim() ||
-          "INVESTIGATING"}
-      </span>
-    </div>
-  );
-}
-
-function CanvasLegend() {
-  return (
-    <div className="canvas-legend">
-      <div className="row">
-        <span className="swatch" style={{ background: "var(--accent)" }} />
-        Orchestrator
-      </div>
-      <div className="row">
-        <span
-          className="swatch"
-          style={{
-            background: "var(--surface-2)",
-            borderColor: "var(--border)",
-          }}
-        />
-        Agent
-      </div>
-      <div className="row">
-        <span
-          className="swatch"
-          style={{
-            background: "var(--surface)",
-            borderColor: "var(--accent-dim)",
-          }}
-        />
-        Official source
-      </div>
-      <div className="row">
-        <span className="swatch" style={{ background: "var(--surface)" }} />
-        Reporting source
-      </div>
-    </div>
-  );
-}
-
 function logKind(type) {
   if (type === "error") return "warn";
   if (

@@ -64,6 +64,11 @@ export async function createInvestigation(payload) {
   return data;
 }
 
+export async function getInvestigations() {
+  const { data } = await api.get("/investigations");
+  return data;
+}
+
 export async function getInvestigation(id) {
   const { data } = await api.get(`/investigations/${id}`);
   return data;

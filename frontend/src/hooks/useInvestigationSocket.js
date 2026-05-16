@@ -17,15 +17,17 @@ export function useInvestigationSocket(investigationId) {
         const detail = await getInvestigation(investigationId);
         for (const event of detail.events || []) {
           ingestEvent({
-            id: `${event.created_at}-${event.type}`,
+            id: event.id || `${event.created_at}-${event.type}`,
             type: event.type,
-            investigation_id: investigationId,
+            investigation_id: event.investigation_id || investigationId,
             payload: event.payload,
             created_at: event.created_at,
           });
         }
+        return detail;
       } catch {
         // WebSocket replay is authoritative; REST detail is only a catch-up fallback.
+        return null;
       }
     }
 
@@ -56,8 +58,18 @@ export function useInvestigationSocket(investigationId) {
       };
     }
 
-    replayCurrentState();
-    connect();
+    async function start() {
+      setWsStatus("loading");
+      const detail = await replayCurrentState();
+      if (closed) return;
+      if (detail?.status === "complete" || detail?.status === "failed") {
+        setWsStatus("closed");
+        return;
+      }
+      connect();
+    }
+
+    start();
 
     return () => {
       closed = true;

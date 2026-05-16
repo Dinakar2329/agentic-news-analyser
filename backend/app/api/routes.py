@@ -183,7 +183,7 @@ async def investigation_detail(investigation_id: str, user: User = Depends(curre
         "verdict": investigation.verdict,
         "confidence": investigation.confidence,
         "events": [
-            {"type": event.type, "payload": json.loads(event.payload_json), "created_at": event.created_at.isoformat()}
+            _event_envelope(event, investigation_id)
             for event in events
         ],
     }

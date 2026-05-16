@@ -45,9 +45,12 @@ function eventLog(event) {
 
 function reduceEvent(state, event) {
   const payload = event.payload || {};
+  if (event.id && state.events.some((item) => item.id === event.id)) {
+    return state;
+  }
   const next = {
     ...state,
-    events: state.events.some((item) => item.id && item.id === event.id) ? state.events : [...state.events, event],
+    events: [...state.events, event],
     logs: [...state.logs, { id: event.id || `${event.type}-${state.logs.length}`, type: event.type, text: eventLog(event), created_at: event.created_at }],
   };
 
@@ -135,6 +138,19 @@ export const useAppStore = create((set) => ({
     set({
       screen: "investigation",
       investigation: { ...initialInvestigation, id, claim, status: "queued", wsStatus: "connecting" },
+    }),
+  openInvestigation: ({ id, claim, status, verdict, confidence }) =>
+    set({
+      screen: "investigation",
+      investigation: {
+        ...initialInvestigation,
+        id,
+        claim,
+        status: status || "queued",
+        verdict: verdict || null,
+        confidence: confidence || 0,
+        wsStatus: "loading",
+      },
     }),
   setWsStatus: (wsStatus) =>
     set((state) => ({ investigation: { ...state.investigation, wsStatus } })),

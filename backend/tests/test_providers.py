@@ -10,6 +10,7 @@ def test_provider_registry_exposes_supported_models():
     assert "gemini-3.1-pro-preview" in provider_model_ids("google")
     assert "gemini-2.5-pro" in provider_model_ids("google")
     assert "gemini-2.5-flash-lite" in provider_model_ids("google")
+    assert "gemini-3.1-pro-preview-customtools" not in provider_model_ids("google")
     assert provider_model_ids("unknown") == set()
 
 

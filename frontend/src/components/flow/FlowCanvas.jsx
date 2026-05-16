@@ -11,7 +11,6 @@ const nodeTypes = {
 const NODE_BASE_CLASS =
   "rf-node rounded-[var(--r-md)] border border-[var(--border)] text-[var(--text)] shadow-[var(--shadow-2)] backdrop-blur-xl";
 
-
 export function FlowCanvas({ graph, agents, sources, confidence, verdict, status = "ready" }) {
   const { nodes, edges } = useMemo(
     () => normalizeGraph(graph, agents, sources, confidence, verdict),
@@ -19,37 +18,37 @@ export function FlowCanvas({ graph, agents, sources, confidence, verdict, status
   );
   const readyLabel = status === "live" ? "LIVE" : String(status || "ready").toUpperCase();
 
-return (
-  <div className="absolute inset-0 flex flex-col">
-    <div className="flow-stage-chrome">
-      <span className="dotz">
-        <span />
-        <span />
-        <span />
-      </span>
-      <span>Agentic News Analyser live investigation graph</span>
-      <span className="flow-stage-status">{readyLabel}</span>
+  return (
+    <div className="absolute inset-0 flex flex-col">
+      <div className="flow-stage-chrome">
+        <span className="dotz">
+          <span />
+          <span />
+          <span />
+        </span>
+        <span>Agentic News Analyser live investigation graph</span>
+        <span className="flow-stage-status">{readyLabel}</span>
+      </div>
+      <div className="flex-1 min-h-0 relative" style={{ background: "linear-gradient(180deg, var(--bg-deep), var(--bg))" }}>
+        <ReactFlow
+          nodes={nodes}
+          edges={edges}
+          nodeTypes={nodeTypes}
+          fitView
+          fitViewOptions={{ padding: 0.28 }}
+          minZoom={0.45}
+          maxZoom={1.8}
+          nodesDraggable={false}
+          nodesConnectable={false}
+          elementsSelectable={false}
+          zoomOnDoubleClick={false}
+          proOptions={{ hideAttribution: true }}
+        >
+          <Background color="var(--canvas-grid-line)" gap={56} size={1} />
+        </ReactFlow>
+      </div>
     </div>
-    <div className="flex-1 min-h-0 relative" style={{ background: "linear-gradient(180deg, var(--bg-deep), var(--bg))" }}>
-      <ReactFlow
-        nodes={nodes}
-        edges={edges}
-        nodeTypes={nodeTypes}
-        fitView
-        fitViewOptions={{ padding: 0.28 }}
-        minZoom={0.45}
-        maxZoom={1.8}
-        nodesDraggable={false}
-        nodesConnectable={false}
-        elementsSelectable={false}
-        zoomOnDoubleClick={false}
-        proOptions={{ hideAttribution: true }}
-      >
-        <Background color="var(--canvas-grid-line)" gap={56} size={1} />
-      </ReactFlow>
-    </div>
-  </div>
-);
+  );
 }
 
 function normalizeGraph(graph, agentsById, sourcesById, confidence, verdict) {
@@ -64,6 +63,7 @@ function normalizeGraph(graph, agentsById, sourcesById, confidence, verdict) {
   const sourceNodes = graphNodes.filter((node) => node.type === "source");
   const agentOrder = agentNodes.map((node) => node.id);
   const agentY = layoutAgentRows(agentNodes.length || 1);
+  const sourceParentById = new Map();
   const sourceParent = new Map(
     graphEdges
       .filter((edge) => sourceNodes.some((node) => node.id === edge.target))
@@ -71,13 +71,18 @@ function normalizeGraph(graph, agentsById, sourcesById, confidence, verdict) {
   );
   const sourcesByAgent = new Map(agentOrder.map((id) => [id, []]));
   sourceNodes.forEach((source, index) => {
+    const explicitParent = sourceParent.get(source.id);
     const fallbackAgent = agentOrder[index % Math.max(agentOrder.length, 1)];
-    const parent = sourceParent.get(source.id) || fallbackAgent;
-    if (!sourcesByAgent.has(parent)) sourcesByAgent.set(parent, []);
+    const parent = agentOrder.includes(explicitParent) ? explicitParent : fallbackAgent || "orphan-sources";
+    if (!sourcesByAgent.has(parent)) {
+      sourcesByAgent.set(parent, []);
+    }
     sourcesByAgent.get(parent).push(source);
+    sourceParentById.set(source.id, parent);
   });
 
-  const laidOutSources = layoutSourceRows(agentOrder, agentY, sourcesByAgent);
+  const layoutOrder = agentOrder.length ? agentOrder : ["orphan-sources"];
+  const laidOutSources = layoutSourceRows(layoutOrder, agentY, sourcesByAgent);
   const yValues = [...agentY, ...laidOutSources.map((item) => item.y), 0];
   const orchestratorY = (Math.min(...yValues) + Math.max(...yValues)) / 2;
 
@@ -123,8 +128,27 @@ function normalizeGraph(graph, agentsById, sourcesById, confidence, verdict) {
       type: "default",
       style: edgeStyle(edge),
     }));
+  const connectedSourceIds = new Set(edges.map((edge) => edge.target));
+  const fallbackEdges = laidOutSources
+    .filter(({ node }) => !connectedSourceIds.has(node.id))
+    .map(({ node }) => {
+      const parent = sourceParentById.get(node.id);
+      if (!nodes.some((candidate) => candidate.id === parent)) return null;
+      return {
+        id: `fallback-${parent}-${node.id}`,
+        source: parent,
+        target: node.id,
+        animated: false,
+        type: "default",
+        style: edgeStyle({
+          source: parent,
+          data: { status: node.data?.stance, weight: (node.data?.reliability_score || 50) / 100 },
+        }),
+      };
+    })
+    .filter(Boolean);
 
-  return { nodes, edges };
+  return { nodes, edges: [...edges, ...fallbackEdges] };
 }
 
 function fallbackGraphNodes(agentsById, sourcesById, confidence, verdict) {

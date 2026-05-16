@@ -314,11 +314,6 @@ PROVIDER_SPECS = {
         "kind": "google",
         "models": [
             {"id": "gemini-3.1-pro-preview", "label": "Gemini 3.1 Pro Preview", "reasoning": True},
-            {
-                "id": "gemini-3.1-pro-preview-customtools",
-                "label": "Gemini 3.1 Pro Preview Custom Tools",
-                "reasoning": True,
-            },
             {"id": "gemini-3-flash-preview", "label": "Gemini 3 Flash Preview", "reasoning": True},
             {"id": "gemini-3.1-flash-lite", "label": "Gemini 3.1 Flash-Lite", "reasoning": True},
             {"id": "gemini-3.1-flash-lite-preview", "label": "Gemini 3.1 Flash-Lite Preview", "reasoning": True},
